@@ -92,7 +92,7 @@ class ENV:
     #VAEの学習を実行するか
     ENABLE_VAR = True
     #何ステップ分の教師データを保存するか
-    X_TRAIN_RANGE = 100000
+    X_TRAIN_RANGE = 50000
 
     # VAE parameters
     input_shape = (original_dim, )
@@ -246,7 +246,6 @@ class ENV:
             self.out_train = np.delete(self.out_train, 0, 0)
             self.out_train = np.delete(self.out_train, 0, 0)
 
-            #self.out_train = self.out_train.astype('float32') / 255.
 
             self.x_train = np.insert(self.out_train, self.out_train.shape[0], self.x_train, axis=0)
             if self.train_data[0] == 0:#一番最初の学習の場合
@@ -293,9 +292,6 @@ class ENV:
         #print(self.TARGET)
         #print(self.x_train)
         #print(self.train_data)
-
-        #描画用に向きを揃える
-        #fliPIC = np.flipud(self.PIC)
         
         if not self.reset_rend:#一度目の処理なので描画初期化
             # Pygameを初期化
@@ -366,8 +362,6 @@ class ENV:
         # - ダメージはゴール時にまとめて計算
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
-        #print(np.max(encoded_obs),'aaaaaaaaaaaa')
-        #print(encoded_obs)
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
             return 100
         else:
@@ -573,8 +567,8 @@ while True:
     if isPressed(S):
         action = 1
     if isPressed(A):
-        action = 2
-    if isPressed(D):
         action = 3
+    if isPressed(D):
+        action = 2
     if driving._step(action)[-2]:
         break
