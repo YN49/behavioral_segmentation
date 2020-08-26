@@ -54,10 +54,6 @@ def sampling(args):
 
 class ENV:
     metadata = {'render.modes': ['human', 'ansi']}
-    MAX_STEPS = 500000
-    #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
-    #RANGE = 0.28本来はこれ
-    RANGE = 0.03#テスト用
     
     f_model = './model'
 
@@ -80,12 +76,25 @@ class ENV:
 
     weights_filename = '強化学習/行動細分化/driving_env/vae.hdf5'
 
-    epochs = 50#vaeのエポック数10
-    TRAIN_FREQ = 10000#何stepに一回学習するか200
+    MAX_STEPS = 500000
+    #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
+    #RANGE = 0.28本来はこれ
+    RANGE = 0.06#テスト用
+
+    #vaeのエポック数10
+    epochs = 50
+    #何stepに一回学習するか200
+    TRAIN_FREQ = 10000
 
     original_dim = VIEW_SIZE[0] * VIEW_SIZE[1]
 
-    # network parameters
+
+    #VAEの学習を実行するか
+    ENABLE_VAR = True
+    #何ステップ分の教師データを保存するか
+    X_TRAIN_RANGE = 100000
+
+    # VAE parameters
     input_shape = (original_dim, )
     #中間層
     intermediate_dim = 128
@@ -219,7 +228,6 @@ class ENV:
         self.int_pos = np.array(self.pos,dtype="int64")
 
         #エンコードするぞ
-        #self.encoded_obs = np.array(self.encoder.predict(np.squeeze(self.obs_encoder())[np.newaxis,:])).reshape(self.latent_dim, )
         self.encoded_obs, _, _ = self.encoder.predict(np.squeeze(self.obs_encoder())[np.newaxis,:])
         self.encoded_obs = self.encoded_obs.reshape(self.latent_dim, )
 
@@ -248,15 +256,18 @@ class ENV:
 
             self.train_data[0] = self.train_data[0] + self.steps#ステップ数カウント
 
+            self.x_train = self.x_train[max(0,int(self.x_train.shape[0] - self.X_TRAIN_RANGE)):,:]
+
             if self.train_data[0] >= self.TRAIN_FREQ:#TRAIN_FREQステップに一回学習
                 self.train_data[0] = 0
 
 
-                #オートエンコーダ実行
-                self.auto_encoder()
+
+                #VAE実行
+                if self.ENABLE_VAR:
+                    self.VAE()
 
                 #ひとがくしゅう終わったからパラメータを初期化する
-                #self.x_train = np.zeros((2,25))
                 self.train_data = np.array([0,])
 
                 #os.remove('強化学習/行動細分化/driving_env/data.npz')
@@ -392,8 +403,8 @@ class ENV:
             else:
                 return False
 
-
-    def auto_encoder(self):#オートエンコーダ
+    #VAE
+    def VAE(self):
         ##############################################学習開始##############################################
         #モデル読み込み
         #json_string = open(os.path.join(self.model_filename)).read()
