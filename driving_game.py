@@ -67,7 +67,7 @@ class ENV:
     HEIGHT = 450
     #ウインドウの場所とサイズ x y size(何倍か)
     WINDOW_DATA = [[0,0,10],
-                  [200,0,24],
+                  [200,0,10],
                   [0,200,2],
                   [500,300,40]]
 
@@ -83,20 +83,20 @@ class ENV:
     epochs = 50#vaeのエポック数10
     TRAIN_FREQ = 10000#何stepに一回学習するか200
 
-    original_dim = 25
+    original_dim = VIEW_SIZE[0] * VIEW_SIZE[1]
 
     # network parameters
     input_shape = (original_dim, )
-    intermediate_dim = 15
+    #中間層
+    intermediate_dim = 128
     batch_size = 128
+    #潜在変数
     latent_dim = 2
-
-    MIDDLE_layer = 2
 
     ##############################################モデル構成##############################################
 
     # VAE model = encoder + decoder
-    # build encoder model
+    # エンコーダーモデルを構築
     inputs = Input(shape=input_shape, name='encoder_input')
     x = Dense(intermediate_dim, activation='relu')(inputs)
     z_mean = Dense(latent_dim, name='z_mean')(x)
@@ -151,9 +151,9 @@ class ENV:
 
         self.reset_rend = False
 
-        self.out_train = np.zeros((2,25))
+        self.out_train = np.zeros((2,self.original_dim))
 
-        self.encoded_obs = np.zeros(self.MIDDLE_layer, )
+        self.encoded_obs = np.zeros(self.latent_dim, )
         
         try:
             loaded_array = np.load('強化学習/行動細分化/driving_env/data.npz')
@@ -163,7 +163,7 @@ class ENV:
             
             self.update_traget()#ターゲットとりあえずランダム設定
         except FileNotFoundError:
-            self.x_train = np.zeros((2,25))
+            self.x_train = np.zeros((2,self.original_dim))
             self.train_data = np.array([0,])
             self.update_traget()#ターゲットとりあえずランダム設定
 
@@ -219,9 +219,9 @@ class ENV:
         self.int_pos = np.array(self.pos,dtype="int64")
 
         #エンコードするぞ
-        #self.encoded_obs = np.array(self.encoder.predict(np.squeeze(self.obs_encoder())[np.newaxis,:])).reshape(self.MIDDLE_layer, )
+        #self.encoded_obs = np.array(self.encoder.predict(np.squeeze(self.obs_encoder())[np.newaxis,:])).reshape(self.latent_dim, )
         self.encoded_obs, _, _ = self.encoder.predict(np.squeeze(self.obs_encoder())[np.newaxis,:])
-        self.encoded_obs = self.encoded_obs.reshape(self.MIDDLE_layer, )
+        self.encoded_obs = self.encoded_obs.reshape(self.latent_dim, )
 
         self.action = action
         self.steps = self.steps + 1
@@ -301,8 +301,8 @@ class ENV:
                 pygame.quit()
                 sys.exit()
 
-        self.TARGET2d = self.TARGET.reshape(int(self.MIDDLE_layer/2),2)*255
-        self.encoded2d = self.encoded_obs.reshape(int(self.MIDDLE_layer/2),2)*255
+        self.TARGET2d = self.TARGET.reshape(int(self.latent_dim/2),2)*255
+        self.encoded2d = self.encoded_obs.reshape(int(self.latent_dim/2),2)*255
 
         #ID0
         self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.obs(),self.obs(),self.obs()]).transpose(1, 2, 0)), (self.obs().shape[0] * self.WINDOW_DATA[0][2] , self.obs().shape[1] * self.WINDOW_DATA[0][2])), (self.covX(0,0), self.covY(0,0)))
@@ -376,7 +376,7 @@ class ENV:
     
 
     def obs_encoder(self):#エンコーダへの入力
-        return np.ravel(self.PIC[self.int_pos[0]-2:self.int_pos[0]+3,self.int_pos[1]-2:self.int_pos[1]+3]).astype('float32') / 255.
+        return np.ravel(self.obs()).astype('float32') / 255.
 
     def _observe(self):#エンコード結果+ターゲット 環境の出力
         return np.concatenate([self.encoded_obs,self.TARGET],0)
@@ -534,8 +534,8 @@ class ENV:
 
 
     def update_traget(self):#ターゲットアップデート
-        self.TARGET = np.random.randn(self.MIDDLE_layer)#ターゲットとりあえずランダム設定
-        self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(5, 5)*255
+        self.TARGET = np.random.randn(self.latent_dim)#ターゲットとりあえずランダム設定
+        self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(self.VIEW_SIZE)*255
         #計算済みの範囲を格納
         self.range_calcu = (self.RANGE*math.sqrt(self.latent_dim*(1/((1/math.sqrt(2*math.pi))*math.e**((np.sum(self.TARGET**2))/-2)))**2))/math.sqrt(self.latent_dim*2*math.pi)
         #self.range_calcu = (self.RANGE/(math.sqrt(1/(math.sqrt(2*math.pi)))*math.e**(((math.sqrt(np.sum(self.TARGET**2)))**2)/-2)))/(1/(math.sqrt(1/(math.sqrt(2*math.pi)))))
