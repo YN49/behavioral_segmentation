@@ -72,7 +72,7 @@ class ENV(gym.Env):
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
     ACCEL = 0.7*0.5
     #何度ハンドルを曲げられるか
-    ANG_HNG = 15*0.5
+    ANG_HNG = 10*0.5
     #スピードの上限
     #一定以上の速度で走れば報酬を与える
     SPEED_REW = 0.3
@@ -251,14 +251,20 @@ class ENV(gym.Env):
         next_pos = self.pos + self.mov_dir_vec
         self.pos = next_pos
         #視界のサイズにあわせて数字の大きさ変えないとね
+        #端っこに衝突したら減点
+        self.collusion_flg = False
         if self.PIC.shape[0] - math.floor(self.VIEW_SIZE[0]) < next_pos[0]:
             self.pos[0] = self.PIC.shape[0] - math.ceil(self.VIEW_SIZE[0])
+            self.collusion_flg = True
         if next_pos[0] <= math.floor(self.VIEW_SIZE[0]):
             self.pos[0] = math.ceil(self.VIEW_SIZE[0])
+            self.collusion_flg = True
         if self.PIC.shape[1] - math.floor(self.VIEW_SIZE[1]) < next_pos[1]:
             self.pos[1] = self.PIC.shape[1] - math.ceil(self.VIEW_SIZE[1])
+            self.collusion_flg = True
         if  next_pos[1] <= math.floor(self.VIEW_SIZE[1]):
             self.pos[1] = math.ceil(self.VIEW_SIZE[1])
+            self.collusion_flg = True
 
         self.int_pos = np.array(self.pos,dtype="int64")
 
@@ -407,6 +413,9 @@ class ENV(gym.Env):
             #ゴールに着いたら高い報酬を与える
             if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
                 return 2000
+            #壁にぶつかったら減点
+            elif self.collusion_flg:
+                return -25
             #外側走ったらダメだから減点
             elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
                 return -15
