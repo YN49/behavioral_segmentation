@@ -165,7 +165,7 @@ class ENV(gym.Env):
         self.pos = np.array([20, 28], dtype=int)
 
         #移動速度のベクトル情報格納 ベクトルの長さ,x軸との交差角θ
-        self.move_vec = [0,0]
+        self.move_vec = [0,90]
         self.done = False
         self.steps = 0
 
