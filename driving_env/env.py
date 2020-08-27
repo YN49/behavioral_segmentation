@@ -66,14 +66,26 @@ class ENV(gym.Env):
     #ウインドウの場所とサイズ x y size(何倍か)
     WINDOW_DATA = [[0,0,10],
                   [200,0,10],
-                  [0,200,1.3],
+                  [0,200,2],
                   [500,300,40]]
 
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
     ACCEL = 0.7*0.5
     #何度ハンドルを曲げられるか
     ANG_HNG = 15*0.5
+    #スピードの上限
+    #一定以上の速度で走れば報酬を与える
+    SPEED_REW = 0.3
+    SPEED_LIM = 2
     VIEW_SIZE = (15,15)
+    #初期位置
+    INI_POS = [20, 28]
+    #初期のベクトル情報
+    INI_VEC = [0,90]
+    #居場所を保存するか
+    ENABLE_SAVE_POS = False
+    #移動ベクトルを保存するか
+    ENABLE_SAVE_VEC = False
 
     #道路の外側の色の濃さ　この色の濃さのところを通るとマイナスの報酬が
     OUTSIDE = 0
@@ -151,7 +163,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-30., 200.]
+        self.reward_range = [-30., 2000.]
 
         self._reset()
 
@@ -161,11 +173,9 @@ class ENV(gym.Env):
         # 諸々の変数を初期化する
 
         #初期位置
-        #self.pos = np.array([int(self.PIC.shape[0]/2), int(self.PIC.shape[1]/2)], dtype=int)#画面の座標x,画面のディレクトリ
-        self.pos = np.array([20, 28], dtype=int)
 
         #移動速度のベクトル情報格納 ベクトルの長さ,x軸との交差角θ
-        self.move_vec = [0,90]
+        self.move_vec = [0,0]
         self.done = False
         self.steps = 0
 
@@ -184,9 +194,21 @@ class ENV(gym.Env):
             self.update_traget()#ターゲットとりあえずランダム設定
         except FileNotFoundError:
             self.x_train = np.zeros((2,self.original_dim))
-            self.train_data = np.array([0,])
+            self.train_data = np.array([0,self.INI_POS[0],self.INI_POS[1],self.INI_VEC[0],self.INI_VEC[1]])
             self.update_traget()#ターゲットとりあえずランダム設定
 
+        #保存されている位置を利用
+        if self.ENABLE_SAVE_POS:
+            self.pos = self.train_data[1:3]
+        else:
+            self.pos = self.INI_POS
+        #保存されてるベクトル利用
+        if self.ENABLE_SAVE_VEC:
+            self.move_vec = [self.train_data[3],self.train_data[4]]
+        else:
+            self.move_vec[0] = self.INI_VEC[0]
+            self.move_vec[1] = self.INI_VEC[1]
+    
 
         try:
             self.vae.load_weights(os.path.join(self.weights_filename))
@@ -203,6 +225,9 @@ class ENV(gym.Env):
         if action == 0:
             #加速
             self.move_vec[0] = self.move_vec[0] + self.ACCEL
+            #リミッター超えたとき
+            if self.SPEED_LIM < self.move_vec[0]:
+                self.move_vec[0] = self.SPEED_LIM
         elif action == 1:
             #減速
             self.move_vec[0] = self.move_vec[0] - self.ACCEL
@@ -216,7 +241,6 @@ class ENV(gym.Env):
             self.move_vec[1] = self.move_vec[1] - self.ANG_HNG
         else:#action4は何もしない
             pass
-        
         
         
         a_1 = self.move_vec[0] * math.cos(math.radians(self.move_vec[1]))
@@ -277,11 +301,18 @@ class ENV(gym.Env):
                 if self.ENABLE_VAR:
                     self.VAE()
 
-                #ひとがくしゅう終わったからパラメータを初期化する
-                self.train_data = np.array([0,])
+                #ひとがくしゅう終わったからステップ数カウンターをを初期化する
+                self.train_data[0] = 0
 
                 #os.remove('強化学習/行動細分化/driving_env/data.npz')
 
+            #居場所を格納
+            if self.ENABLE_SAVE_POS:
+                self.train_data[1:3] = self.pos
+            #ベクトル保存
+            if self.ENABLE_SAVE_VEC:
+                self.train_data[3] = self.move_vec[0]
+                self.train_data[4] = self.move_vec[1]
             #保存
             np.savez('強化学習/行動細分化/driving_env/data.npz', self.x_train, self.train_data, self.TARGET)
 
@@ -371,17 +402,20 @@ class ENV(gym.Env):
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
-            return 100
+            return 300
         else:
             #ゴールに着いたら高い報酬を与える
             if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-                return 200
+                return 2000
             #外側走ったらダメだから減点
             elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-                return -30
+                return -15
+            #一定の速度で走れば報酬を増やす
+            elif self.SPEED_REW < self.move_vec[0]:
+                return -1
             #ステップ毎減点
             else:
-                return -1
+                return -5
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -398,6 +432,10 @@ class ENV(gym.Env):
     def _is_done(self):
         # 今回は最大で self.MAX_STEPS までとした ゴールについたら終了 最後のディレクトリでボタンを押す
         if self.steps > self.MAX_STEPS or self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL or math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
+            #ゴールに着いたらベクトルと場所を初期化
+            if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
+                self.move_vec = self.INI_VEC
+                self.pos = np.array(self.INI_POS)
             return True
         else:
             return False
