@@ -57,7 +57,7 @@ class ENV:
     
     f_model = './model'
 
-    PIC = np.array(Image.open('強化学習/行動細分化/driving_env/MAP_PIC.png').convert('L'))
+    PIC = np.array(Image.open('強化学習/行動細分化/driving_env/driving_env/MAP_PIC.png').convert('L'))
 
     WIDTH = 950
     HEIGHT = 450
@@ -74,7 +74,7 @@ class ENV:
     VIEW_SIZE = (15,15)
 
 
-    weights_filename = '強化学習/行動細分化/driving_env/vae.hdf5'
+    weights_filename = '強化学習/行動細分化/driving_env/driving_env/vae.hdf5'
 
     MAX_STEPS = 500000
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
@@ -165,7 +165,7 @@ class ENV:
         self.encoded_obs = np.zeros(self.latent_dim, )
         
         try:
-            loaded_array = np.load('強化学習/行動細分化/driving_env/data.npz')
+            loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env/data.npz')
             self.x_train = loaded_array['arr_0']
             self.train_data = loaded_array['arr_1']
             #self.TARGET = loaded_array['arr_2']
@@ -269,10 +269,10 @@ class ENV:
                 #ひとがくしゅう終わったからパラメータを初期化する
                 self.train_data = np.array([0,])
 
-                #os.remove('強化学習/行動細分化/driving_env/data.npz')
+                #os.remove('強化学習/行動細分化/driving_env/driving_env/data.npz')
 
             #保存
-            np.savez('強化学習/行動細分化/driving_env/data.npz', self.x_train, self.train_data, self.TARGET)
+            np.savez('強化学習/行動細分化/driving_env/driving_env/data.npz', self.x_train, self.train_data, self.TARGET)
 
         #####\\\^----------------------------------------------------------------------------------------------
         self._render()
@@ -454,13 +454,13 @@ class ENV:
         val_loss = np.array(history.history['val_loss'])
         #学習履歴データの前のを取り出して読んで保存
         try:
-            vae_hist = np.load('強化学習/行動細分化/driving_env/vae_history.npz')
+            vae_hist = np.load('強化学習/行動細分化/driving_env/driving_env/vae_history.npz')
             loss = np.append(loss, vae_hist['arr_0'])
             val_loss = np.append(val_loss, vae_hist['arr_1'])
         except FileNotFoundError:
             pass
 
-        np.savez('強化学習/行動細分化/driving_env/vae_history.npz', loss, val_loss)
+        np.savez('強化学習/行動細分化/driving_env/driving_env/vae_history.npz', loss, val_loss)
 
         #学習のhistory結果をグラフ化
         self.compare_TV(loss,val_loss)'''
