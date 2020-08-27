@@ -361,7 +361,7 @@ class ENV(gym.Env):
         #真ん中に車を描画
         pygame.draw.circle(self.screen, (255,255,0), (self.covX(0,self.VIEW_SIZE[0]/2),self.covY(0,self.VIEW_SIZE[1]/2)), 5)
         #移動ベクトル描画
-        pygame.draw.line(self.screen, (255,0,0), (self.covX(0,self.VIEW_SIZE[0]/2),self.covY(0,self.VIEW_SIZE[1]/2)), (self.covX(0,self.VIEW_SIZE[0]/2+self.mov_dir_vec[0]*10),self.covY(0,self.VIEW_SIZE[1]/2+self.mov_dir_vec[1]*10)))
+        pygame.draw.line(self.screen, (255,0,0), (self.covX(0,self.VIEW_SIZE[0]/2),self.covY(0,self.VIEW_SIZE[1]/2)), (self.covX(0,self.VIEW_SIZE[0]/2+self.mov_dir_vec[0]*5),self.covY(0,self.VIEW_SIZE[1]/2+self.mov_dir_vec[1]*5)))
         #ID1
         self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.TARGET_PIC,self.TARGET_PIC,self.TARGET_PIC]).transpose(1, 2, 0)), (self.TARGET_PIC.shape[0] * self.WINDOW_DATA[1][2] , self.TARGET_PIC.shape[1] * self.WINDOW_DATA[1][2])), (self.covX(1,0), self.covY(1,0)))
         #ID2
@@ -370,7 +370,7 @@ class ENV(gym.Env):
         #車を描画
         pygame.draw.circle(self.screen, (255,255,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), 3)
         #移動ベクトル描画
-        pygame.draw.line(self.screen, (255,0,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), (self.covX(2,self.pos[0]+self.mov_dir_vec[0]*40),self.covY(2,self.pos[1]+self.mov_dir_vec[1]*40)))
+        pygame.draw.line(self.screen, (255,0,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), (self.covX(2,self.pos[0]+self.mov_dir_vec[0]*20),self.covY(2,self.pos[1]+self.mov_dir_vec[1]*20)))
 
         #ID3
         #軸
