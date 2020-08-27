@@ -7,8 +7,6 @@ from keras.models import Model
 from keras.losses import mse, binary_crossentropy
 from keras import backend as K
 
-from tensorflow.keras.callbacks import EarlyStopping
-
 import matplotlib.pyplot as plt
 import argparse
 
@@ -54,12 +52,12 @@ def sampling(args):
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
-class ENV(gym.Env):
+class ENV:
     metadata = {'render.modes': ['human', 'ansi']}
     
     f_model = './model'
 
-    PIC = np.array(Image.open('強化学習/行動細分化/driving_env/driving_env/MAP_PIC.png').convert('L'))
+    PIC = np.array(Image.open('強化学習/行動細分化/driving_env/driving_env_SODA/MAP_PIC.png').convert('L'))
 
     WIDTH = 950
     HEIGHT = 450
@@ -70,36 +68,18 @@ class ENV(gym.Env):
                   [500,300,40]]
 
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
-    ACCEL = 0.7*0.5
+    ACCEL = 0.05*0.002
     #何度ハンドルを曲げられるか
-    ANG_HNG = 10*0.5
-    #スピードの上限
-    #一定以上の速度で走れば報酬を与える
-    SPEED_REW = 0.3
-    SPEED_LIM = 2
+    ANG_HNG = 145*0.002
     VIEW_SIZE = (15,15)
-    #初期位置
-    INI_POS = [20, 28]
-    #初期のベクトル情報
-    INI_VEC = [0,90]
-    #居場所を保存するか
-    ENABLE_SAVE_POS = False
-    #移動ベクトルを保存するか
-    ENABLE_SAVE_VEC = False
-
-    #道路の外側の色の濃さ　この色の濃さのところを通るとマイナスの報酬が
-    OUTSIDE = 0
-    #ゴールの色の濃さ ここを通ると報酬が発生
-    GOAL = 64
-    #ゴールとか障害物の値の誤差範囲
-    ERROR_OF_PIX_VAL = 5
 
 
-    weights_filename = '強化学習/行動細分化/driving_env/driving_env/vae.hdf5'
+    weights_filename = '強化学習/行動細分化/driving_env/driving_env_SODA/vae.hdf5'
 
-    MAX_STEPS = 50
+    MAX_STEPS = 500000
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
-    RANGE = 0.25#本来はこれ
+    #RANGE = 0.28本来はこれ
+    RANGE = 0.06#テスト用
 
     #vaeのエポック数10
     epochs = 50
@@ -163,7 +143,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-30., 2000.]
+        self.reward_range = [-1., 100.]
 
         self._reset()
 
@@ -172,8 +152,7 @@ class ENV(gym.Env):
     def _reset(self):
         # 諸々の変数を初期化する
 
-        #初期位置
-
+        self.pos = np.array([int(self.PIC.shape[0]/2), int(self.PIC.shape[1]/2)], dtype=int)#画面の座標x,画面のディレクトリ
         #移動速度のベクトル情報格納 ベクトルの長さ,x軸との交差角θ
         self.move_vec = [0,0]
         self.done = False
@@ -186,7 +165,7 @@ class ENV(gym.Env):
         self.encoded_obs = np.zeros(self.latent_dim, )
         
         try:
-            loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env/data.npz')
+            loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env_SODA/data.npz')
             self.x_train = loaded_array['arr_0']
             self.train_data = loaded_array['arr_1']
             #self.TARGET = loaded_array['arr_2']
@@ -194,21 +173,9 @@ class ENV(gym.Env):
             self.update_traget()#ターゲットとりあえずランダム設定
         except FileNotFoundError:
             self.x_train = np.zeros((2,self.original_dim))
-            self.train_data = np.array([0,self.INI_POS[0],self.INI_POS[1],self.INI_VEC[0],self.INI_VEC[1]])
+            self.train_data = np.array([0,])
             self.update_traget()#ターゲットとりあえずランダム設定
 
-        #保存されている位置を利用
-        if self.ENABLE_SAVE_POS:
-            self.pos = self.train_data[1:3]
-        else:
-            self.pos = self.INI_POS
-        #保存されてるベクトル利用
-        if self.ENABLE_SAVE_VEC:
-            self.move_vec = [self.train_data[3],self.train_data[4]]
-        else:
-            self.move_vec[0] = self.INI_VEC[0]
-            self.move_vec[1] = self.INI_VEC[1]
-    
 
         try:
             self.vae.load_weights(os.path.join(self.weights_filename))
@@ -225,9 +192,6 @@ class ENV(gym.Env):
         if action == 0:
             #加速
             self.move_vec[0] = self.move_vec[0] + self.ACCEL
-            #リミッター超えたとき
-            if self.SPEED_LIM < self.move_vec[0]:
-                self.move_vec[0] = self.SPEED_LIM
         elif action == 1:
             #減速
             self.move_vec[0] = self.move_vec[0] - self.ACCEL
@@ -243,6 +207,7 @@ class ENV(gym.Env):
             pass
         
         
+        
         a_1 = self.move_vec[0] * math.cos(math.radians(self.move_vec[1]))
         a_2 = self.move_vec[0] * math.cos(math.radians(90 - self.move_vec[1]))
         #移動方向のベクトル
@@ -251,20 +216,14 @@ class ENV(gym.Env):
         next_pos = self.pos + self.mov_dir_vec
         self.pos = next_pos
         #視界のサイズにあわせて数字の大きさ変えないとね
-        #端っこに衝突したら減点
-        self.collusion_flg = False
         if self.PIC.shape[0] - math.floor(self.VIEW_SIZE[0]) < next_pos[0]:
             self.pos[0] = self.PIC.shape[0] - math.ceil(self.VIEW_SIZE[0])
-            self.collusion_flg = True
         if next_pos[0] <= math.floor(self.VIEW_SIZE[0]):
             self.pos[0] = math.ceil(self.VIEW_SIZE[0])
-            self.collusion_flg = True
         if self.PIC.shape[1] - math.floor(self.VIEW_SIZE[1]) < next_pos[1]:
             self.pos[1] = self.PIC.shape[1] - math.ceil(self.VIEW_SIZE[1])
-            self.collusion_flg = True
         if  next_pos[1] <= math.floor(self.VIEW_SIZE[1]):
             self.pos[1] = math.ceil(self.VIEW_SIZE[1])
-            self.collusion_flg = True
 
         self.int_pos = np.array(self.pos,dtype="int64")
 
@@ -307,20 +266,16 @@ class ENV(gym.Env):
                 if self.ENABLE_VAR:
                     self.VAE()
 
-                #ひとがくしゅう終わったからステップ数カウンターをを初期化する
-                self.train_data[0] = 0
+                #ひとがくしゅう終わったからパラメータを初期化する
+                self.train_data = np.array([0,])
 
-                #os.remove('強化学習/行動細分化/driving_env/driving_env/data.npz')
+                #os.remove('強化学習/行動細分化/driving_env/driving_env_SODA/data.npz')
 
-            #居場所を格納
-            if self.ENABLE_SAVE_POS:
-                self.train_data[1:3] = self.pos
-            #ベクトル保存
-            if self.ENABLE_SAVE_VEC:
-                self.train_data[3] = self.move_vec[0]
-                self.train_data[4] = self.move_vec[1]
             #保存
-            np.savez('強化学習/行動細分化/driving_env/driving_env/data.npz', self.x_train, self.train_data, self.TARGET)
+            np.savez('強化学習/行動細分化/driving_env/driving_env_SODA/data.npz', self.x_train, self.train_data, self.TARGET)
+
+        #####\\\^----------------------------------------------------------------------------------------------
+        self._render()
 
 
         return observation, reward, self.done, {}
@@ -361,16 +316,16 @@ class ENV(gym.Env):
         #真ん中に車を描画
         pygame.draw.circle(self.screen, (255,255,0), (self.covX(0,self.VIEW_SIZE[0]/2),self.covY(0,self.VIEW_SIZE[1]/2)), 5)
         #移動ベクトル描画
-        pygame.draw.line(self.screen, (255,0,0), (self.covX(0,self.VIEW_SIZE[0]/2),self.covY(0,self.VIEW_SIZE[1]/2)), (self.covX(0,self.VIEW_SIZE[0]/2+self.mov_dir_vec[0]*10),self.covY(0,self.VIEW_SIZE[1]/2+self.mov_dir_vec[1]*10)))
+        pygame.draw.line(self.screen, (255,0,0), (self.covX(0,self.VIEW_SIZE[0]/2),self.covY(0,self.VIEW_SIZE[1]/2)), (self.covX(0,self.VIEW_SIZE[0]/2+self.mov_dir_vec[0]*100),self.covY(0,self.VIEW_SIZE[1]/2+self.mov_dir_vec[1]*100)))
         #ID1
         self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.TARGET_PIC,self.TARGET_PIC,self.TARGET_PIC]).transpose(1, 2, 0)), (self.TARGET_PIC.shape[0] * self.WINDOW_DATA[1][2] , self.TARGET_PIC.shape[1] * self.WINDOW_DATA[1][2])), (self.covX(1,0), self.covY(1,0)))
         #ID2
         #mapの下地
-        self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.PIC,self.PIC,self.PIC]).transpose(1, 2, 0)), (int(self.PIC.shape[0] * self.WINDOW_DATA[2][2]) , int(self.PIC.shape[1] * self.WINDOW_DATA[2][2]))), (self.covX(2,0), self.covY(2,0)))
+        self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.PIC,self.PIC,self.PIC]).transpose(1, 2, 0)), (self.PIC.shape[0] * self.WINDOW_DATA[2][2] , self.PIC.shape[1] * self.WINDOW_DATA[2][2])), (self.covX(2,0), self.covY(2,0)))
         #車を描画
         pygame.draw.circle(self.screen, (255,255,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), 3)
         #移動ベクトル描画
-        pygame.draw.line(self.screen, (255,0,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), (self.covX(2,self.pos[0]+self.mov_dir_vec[0]*40),self.covY(2,self.pos[1]+self.mov_dir_vec[1]*40)))
+        pygame.draw.line(self.screen, (255,0,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), (self.covX(2,self.pos[0]+self.mov_dir_vec[0]*400),self.covY(2,self.pos[1]+self.mov_dir_vec[1]*400)))
 
         #ID3
         #軸
@@ -408,23 +363,17 @@ class ENV(gym.Env):
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
-            return 300
+            return 100
         else:
-            #ゴールに着いたら高い報酬を与える
-            if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-                return 2000
-            #壁にぶつかったら減点
-            elif self.collusion_flg:
-                return -25
-            #外側走ったらダメだから減点
-            elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-                return -15
-            #一定の速度で走れば報酬を増やす
-            elif self.SPEED_REW < self.move_vec[0]:
-                return -1
-            #ステップ毎減点
+            return -1
+        '''
+        if not self._is_done():#終了してないとき
+            return -1
+        else:#終了時
+            if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.RANGE:
+                return 100
             else:
-                return -5
+                return -1'''
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -439,15 +388,14 @@ class ENV(gym.Env):
 
     
     def _is_done(self):
-        # 今回は最大で self.MAX_STEPS までとした ゴールについたら終了 最後のディレクトリでボタンを押す
-        if self.steps > self.MAX_STEPS or self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL or math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
-            #ゴールに着いたらベクトルと場所を初期化
-            if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-                self.move_vec = self.INI_VEC
-                self.pos = np.array(self.INI_POS)
+        # 今回は最大で self.MAX_STEPS までとした
+        if self.steps > self.MAX_STEPS:
             return True
         else:
-            return False
+            if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:#最後のディレクトリでボタンを押す
+                return True
+            else:
+                return False
 
     #VAE
     def VAE(self):
@@ -490,14 +438,12 @@ class ENV(gym.Env):
         self.vae.add_loss(vae_loss)
         self.vae.compile(optimizer='adam', loss=None)
 
-        #自動終了
-        early_stopping = EarlyStopping(monitor='val_loss', mode='auto', patience=20)
+
         # train the autoencoder
         history = self.vae.fit(self.x_train,
                 epochs=self.epochs,
                 batch_size=self.batch_size,
-                validation_data=(self.x_train, None),
-                callbacks=[early_stopping])
+                validation_data=(self.x_train, None))
 
         #self.plot_results()
 
@@ -508,13 +454,13 @@ class ENV(gym.Env):
         val_loss = np.array(history.history['val_loss'])
         #学習履歴データの前のを取り出して読んで保存
         try:
-            vae_hist = np.load('強化学習/行動細分化/driving_env/driving_env/vae_history.npz')
+            vae_hist = np.load('強化学習/行動細分化/driving_env/driving_env_SODA/vae_history.npz')
             loss = np.append(loss, vae_hist['arr_0'])
             val_loss = np.append(val_loss, vae_hist['arr_1'])
         except FileNotFoundError:
             pass
 
-        np.savez('強化学習/行動細分化/driving_env/driving_env/vae_history.npz', loss, val_loss)
+        np.savez('強化学習/行動細分化/driving_env/driving_env_SODA/vae_history.npz', loss, val_loss)
 
         #学習のhistory結果をグラフ化
         self.compare_TV(loss,val_loss)'''
@@ -605,3 +551,24 @@ class ENV(gym.Env):
         return int(x * self.WINDOW_DATA[winID][2] + self.WINDOW_DATA[winID][0])
     def covY(self,winID,y):
         return int(y * self.WINDOW_DATA[winID][2] + self.WINDOW_DATA[winID][1])
+
+
+
+driving = ENV()
+
+while True:
+    W=0x57
+    A=0x41
+    S=0x53
+    D=0x44
+    action = 4
+    if isPressed(W):
+        action = 0
+    if isPressed(S):
+        action = 1
+    if isPressed(A):
+        action = 3
+    if isPressed(D):
+        action = 2
+    if driving._step(action)[-2]:
+        break
