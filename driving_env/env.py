@@ -64,21 +64,28 @@ class ENV(gym.Env):
     #ウインドウの場所とサイズ x y size(何倍か)
     WINDOW_DATA = [[0,0,10],
                   [200,0,10],
-                  [0,200,2],
+                  [0,200,1.3],
                   [500,300,40]]
 
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
-    ACCEL = 0.5*0.5
+    ACCEL = 0.7*0.5
     #何度ハンドルを曲げられるか
-    ANG_HNG = 95*0.5
+    ANG_HNG = 15*0.5
     VIEW_SIZE = (15,15)
+
+    #道路の外側の色の濃さ　この色の濃さのところを通るとマイナスの報酬が
+    OUTSIDE = 0
+    #ゴールの色の濃さ ここを通ると報酬が発生
+    GOAL = 64
+    #ゴールとか障害物の値の誤差範囲
+    ERROR_OF_PIX_VAL = 5
 
 
     weights_filename = '強化学習/行動細分化/driving_env/vae.hdf5'
 
     MAX_STEPS = 50
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
-    RANGE = 0.28#本来はこれ
+    RANGE = 0.25#本来はこれ
 
     #vaeのエポック数10
     epochs = 50
@@ -91,7 +98,7 @@ class ENV(gym.Env):
     #VAEの学習を実行するか
     ENABLE_VAR = True
     #何ステップ分の教師データを保存するか
-    X_TRAIN_RANGE = 50000
+    X_TRAIN_RANGE = 80000
 
     # VAE parameters
     input_shape = (original_dim, )
@@ -142,7 +149,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-1., 100.]
+        self.reward_range = [-30., 200.]
 
         self._reset()
 
@@ -151,7 +158,10 @@ class ENV(gym.Env):
     def _reset(self):
         # 諸々の変数を初期化する
 
-        self.pos = np.array([int(self.PIC.shape[0]/2), int(self.PIC.shape[1]/2)], dtype=int)#画面の座標x,画面のディレクトリ
+        #初期位置
+        #self.pos = np.array([int(self.PIC.shape[0]/2), int(self.PIC.shape[1]/2)], dtype=int)#画面の座標x,画面のディレクトリ
+        self.pos = np.array([20, 28], dtype=int)
+
         #移動速度のベクトル情報格納 ベクトルの長さ,x軸との交差角θ
         self.move_vec = [0,0]
         self.done = False
@@ -273,9 +283,6 @@ class ENV(gym.Env):
             #保存
             np.savez('強化学習/行動細分化/driving_env/data.npz', self.x_train, self.train_data, self.TARGET)
 
-        #####\\\^----------------------------------------------------------------------------------------------
-        self._render()
-
 
         return observation, reward, self.done, {}
 
@@ -320,7 +327,7 @@ class ENV(gym.Env):
         self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.TARGET_PIC,self.TARGET_PIC,self.TARGET_PIC]).transpose(1, 2, 0)), (self.TARGET_PIC.shape[0] * self.WINDOW_DATA[1][2] , self.TARGET_PIC.shape[1] * self.WINDOW_DATA[1][2])), (self.covX(1,0), self.covY(1,0)))
         #ID2
         #mapの下地
-        self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.PIC,self.PIC,self.PIC]).transpose(1, 2, 0)), (self.PIC.shape[0] * self.WINDOW_DATA[2][2] , self.PIC.shape[1] * self.WINDOW_DATA[2][2])), (self.covX(2,0), self.covY(2,0)))
+        self.screen.blit(pygame.transform.scale(pygame.surfarray.make_surface(np.array([self.PIC,self.PIC,self.PIC]).transpose(1, 2, 0)), (int(self.PIC.shape[0] * self.WINDOW_DATA[2][2]) , int(self.PIC.shape[1] * self.WINDOW_DATA[2][2]))), (self.covX(2,0), self.covY(2,0)))
         #車を描画
         pygame.draw.circle(self.screen, (255,255,0), (self.covX(2,self.pos[0]),self.covY(2,self.pos[1])), 3)
         #移動ベクトル描画
@@ -364,15 +371,15 @@ class ENV(gym.Env):
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
             return 100
         else:
-            return -1
-        '''
-        if not self._is_done():#終了してないとき
-            return -1
-        else:#終了時
-            if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.RANGE:
-                return 100
+            #ゴールに着いたら高い報酬を与える
+            if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
+                return 200
+            #外側走ったらダメだから減点
+            elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
+                return -30
+            #ステップ毎減点
             else:
-                return -1'''
+                return -1
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -387,14 +394,11 @@ class ENV(gym.Env):
 
     
     def _is_done(self):
-        # 今回は最大で self.MAX_STEPS までとした
-        if self.steps > self.MAX_STEPS:
+        # 今回は最大で self.MAX_STEPS までとした ゴールについたら終了 最後のディレクトリでボタンを押す
+        if self.steps > self.MAX_STEPS or self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL or math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
             return True
         else:
-            if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:#最後のディレクトリでボタンを押す
-                return True
-            else:
-                return False
+            return False
 
     #VAE
     def VAE(self):

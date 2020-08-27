@@ -92,7 +92,7 @@ class ENV:
     #VAEの学習を実行するか
     ENABLE_VAR = True
     #何ステップ分の教師データを保存するか
-    X_TRAIN_RANGE = 50000
+    X_TRAIN_RANGE = 80000
 
     # VAE parameters
     input_shape = (original_dim, )
