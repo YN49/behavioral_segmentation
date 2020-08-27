@@ -7,6 +7,8 @@ from keras.models import Model
 from keras.losses import mse, binary_crossentropy
 from keras import backend as K
 
+from tensorflow.keras.callbacks import EarlyStopping
+
 import matplotlib.pyplot as plt
 import argparse
 
@@ -441,12 +443,14 @@ class ENV(gym.Env):
         self.vae.add_loss(vae_loss)
         self.vae.compile(optimizer='adam', loss=None)
 
-
+        #自動終了
+        early_stopping = EarlyStopping(monitor='val_loss', mode='auto', patience=20)
         # train the autoencoder
         history = self.vae.fit(self.x_train,
                 epochs=self.epochs,
                 batch_size=self.batch_size,
-                validation_data=(self.x_train, None))
+                validation_data=(self.x_train, None),
+                callbacks=[early_stopping])
 
         #self.plot_results()
 

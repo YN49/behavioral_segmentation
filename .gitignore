@@ -1,3 +1,2 @@
-data.npz
-vae.hdf5
-学習データバックアップ/
+*.npz
+*.hdf5
