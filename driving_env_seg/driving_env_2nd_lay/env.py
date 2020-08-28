@@ -59,8 +59,9 @@ class ENV(gym.Env):
 
 
         #同期ファイルを初期化
-        self.sync1_2 = np.array([False,False],dtype="bool")
+        self.sync1_2 = np.array([False],dtype="bool")
         self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
+
 
         
         return self._observe()
@@ -113,7 +114,8 @@ class ENV(gym.Env):
 
     def _render(self, mode='human', close=False):
         # human の場合はコンソールに出力。ansiの場合は StringIO を返す
-        os.system('cls')
+        #os.system('cls')
+        pass
         
 
     def _close(self):

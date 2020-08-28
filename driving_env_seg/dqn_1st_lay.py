@@ -17,9 +17,9 @@ if 'session' in locals() and session is not None:
 lear_method = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/lear_method.npy', dtype="bool")
 
 if lear_method[0]:
-    print("===========================2層目を学習します===========================")
+    print("===========================DQN1:2層目を学習します===========================")
 else:
-    print("===========================1層目を学習します===========================")
+    print("===========================DQN1:1層目を学習します===========================")
 
 ENV_NAME = 'driving_seg-v0'
 
@@ -75,7 +75,9 @@ if not lear_method[0]:
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
+    # Finally, evaluate our algorithm for 5 episodes.
+    dqn.test(env, nb_episodes=10, visualize=True)
 
-
-# Finally, evaluate our algorithm for 5 episodes.
-dqn.test(env, nb_episodes=10, visualize=True)
+else:
+    # Finally, evaluate our algorithm for 5 episodes.
+    dqn.test(env, nb_episodes=10, visualize=True, verbose=0)

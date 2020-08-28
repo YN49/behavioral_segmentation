@@ -97,6 +97,9 @@ class ENV(gym.Env):
 
     weights_filename = '強化学習/行動細分化/driving_env/driving_env_seg/vae.hdf5'
 
+    #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
+    INTERVAL = 4
+
     MAX_STEPS = 50
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.25#本来はこれ
@@ -216,10 +219,38 @@ class ENV(gym.Env):
             pass
 
 
+        #学習モード取得 Trueは2層目学習 Falseは1層目学習
+        self.lear_method = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/lear_method.npy', dtype="bool")
+        """
+        if self.lear_method[0]:
+            print("===========================ENV1:2層目の学習であることを認知しました===========================")
+        else:
+            print("===========================ENV1:1層目の学習であることを認知しました===========================")"""
+
+        self.sync1_2 = np.array([False],dtype="bool")
+
+
         return self._observe()
         
 
     def _step(self, action):
+
+        #2層目学習時にはENV2の処理を待つ
+        if self.lear_method[0]:
+            #1,5,9,13,17(INTERVAL=4の場合)の周期でストップさせる
+            if self.steps % self.INTERVAL == 1:
+                #準備ができたので準備完了信号を出す
+                self.sync1_2[0] = False
+                self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
+                while True:
+                    self.sync1_2 = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy', dtype="bool")
+                    #Trueにenv2がしてきたのでそれを感知して処理開始
+                    #多分同時にファイル開かれるとサイズが0になっちゃうからそれを防止する
+                    try:
+                        if self.sync1_2[0]:
+                            break
+                    except IndexError:
+                        pass
 
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
