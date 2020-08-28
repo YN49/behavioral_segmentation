@@ -70,7 +70,7 @@ if not lear_method[0]:
     # Okay, now it's time to learn something! We visualize the training here for show, but this
     # slows down training quite a lot. You can always safely abort the training prematurely using
     # Ctrl + C.
-    dqn.fit(env, nb_steps=10000, visualize=True, verbose=1)
+    dqn.fit(env, nb_steps=10000, visualize=True, verbose=0)
 
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
@@ -80,4 +80,4 @@ if not lear_method[0]:
 
 else:
     # Finally, evaluate our algorithm for 5 episodes.
-    dqn.test(env, nb_episodes=10, visualize=True, verbose=0)
+    dqn.test(env, nb_episodes=10, visualize=True)

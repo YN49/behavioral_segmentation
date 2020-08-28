@@ -100,6 +100,8 @@ class ENV(gym.Env):
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
     INTERVAL = 4
     MAX_STEPS = 50
+    #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
+    MAX_STEPS = MAX_STEPS * (INTERVAL - 1) + (INTERVAL - 1) * 2
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.25#本来はこれ
 
@@ -226,6 +228,10 @@ class ENV(gym.Env):
 
         self.sync1_2 = np.array([False],dtype="bool")
 
+        #終了伝達ファイルを初期化
+        done_signal = np.array([False],dtype="bool")
+        done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
+
 
         #一層目の学習はランダムでターゲット設定
         if not self.lear_method[0]:
@@ -235,10 +241,7 @@ class ENV(gym.Env):
             self.TARGET = np.zeros(self.latent_dim)
             self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(self.VIEW_SIZE)*255
             #計算済みの範囲を格納
-            self.range_calcu = (self.RANGE*math.sqrt(self.latent_dim*(1/((1/math.sqrt(2*math.pi))*math.e**((np.sum(self.TARGET**2))/-2)))**2))/math.sqrt(self.latent_dim*2*math.pi)
-
-        #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
-        self.MAX_STEPS = self.MAX_STEPS * self.INTERVAL
+            self.range_calcu = 0.5
 
 
         return self._observe()
@@ -251,7 +254,7 @@ class ENV(gym.Env):
         #2層目学習時にはENV2の処理を待つ
         if self.lear_method[0]:
             #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
-            if self.steps % self.INTERVAL - 1 == 1:
+            if self.steps % (self.INTERVAL - 1) == 1:
 
                 #決定されたターゲットの読み込み
                 try:
@@ -261,8 +264,9 @@ class ENV(gym.Env):
 
                 self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(self.VIEW_SIZE)*255
                 #計算済みの範囲を格納
-                self.range_calcu = (self.RANGE*math.sqrt(self.latent_dim*(1/((1/math.sqrt(2*math.pi))*math.e**((np.sum(self.TARGET**2))/-2)))**2))/math.sqrt(self.latent_dim*2*math.pi)
+                self.range_calcu = 0.5
 
+        print("1",self.steps)
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
             #加速
@@ -324,6 +328,8 @@ class ENV(gym.Env):
         #現ステップのobservationを教師データに格納
         self.out_train = np.insert(self.out_train, self.out_train.shape[0], self.obs_encoder(), axis=0)
         if self.done:
+
+            print("DONE")#------------------------------------------------------------------------------------------------------------------
             
             #終了時に先端の２つの余計な配列を取り除く
             self.out_train = np.delete(self.out_train, 0, 0)
@@ -368,7 +374,7 @@ class ENV(gym.Env):
         #2層目学習時にはENV2の処理を待つ
         if self.lear_method[0]:
             #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
-            if self.steps % self.INTERVAL - 1 == 1:
+            if self.steps % (self.INTERVAL - 1) == 1:
                 #準備ができたので準備完了信号を出す
                 self.sync1_2[0] = False
                 self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
@@ -470,7 +476,7 @@ class ENV(gym.Env):
         # - ダメージはゴール時にまとめて計算
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
-        if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
+        if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
             return 300
         else:
             #ゴールに着いたら高い報酬を与える
@@ -503,11 +509,27 @@ class ENV(gym.Env):
     
     def _is_done(self):
         # 今回は最大で self.MAX_STEPS までとした ゴールについたら終了 最後のディレクトリでボタンを押す
-        if self.steps > self.MAX_STEPS or self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL or math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
+
+        #相手が終了したか取得する ENV1からの通信 ENV2からの通信
+        done_signal = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy', dtype="bool")
+
+        #maxstep超えたら終了
+        if self.steps > self.MAX_STEPS and not self.lear_method[0]:
+            return True
+        #ゴールに到着で終了 これは共有条件
+        elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
             #ゴールに着いたらベクトルと場所を初期化
-            if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-                self.move_vec = self.INI_VEC
-                self.pos = np.array(self.INI_POS)
+            self.move_vec = self.INI_VEC
+            self.pos = np.array(self.INI_POS)
+
+            done_signal[0] = True
+            done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
+
+            return True
+        elif (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
+            return True
+        #終了伝達がきたら終了
+        elif done_signal[0]:
             return True
         else:
             return False

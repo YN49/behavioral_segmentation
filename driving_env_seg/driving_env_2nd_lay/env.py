@@ -51,6 +51,10 @@ class ENV(gym.Env):
         #同期ファイルを初期化
         self.sync1_2 = np.array([False],dtype="bool")
         self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
+
+        #終了伝達ファイルを初期化
+        done_signal = np.array([False],dtype="bool")
+        done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
         
         return self._observe()
 
@@ -76,6 +80,7 @@ class ENV(gym.Env):
         self.encoded_obs = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
 
 
+        print("2",self.steps)
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
             self.pos = self.pos + np.array([self.SENSITIVITY, 0])
@@ -138,8 +143,17 @@ class ENV(gym.Env):
         return self.pos
     
     def _is_done(self):
+        #相手が終了したか取得する ENV1からの通信 ENV2からの通信
+        done_signal = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy', dtype="bool")
+
         # 今回は最大で self.MAX_STEPS までとした
         if self.steps > self.MAX_STEPS:
+            #MAXSTEPで完全に終了するため伝達を行う
+            done_signal[0] = True
+            done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
+            return True
+        #終了伝達がきたら終了
+        elif done_signal[0]:
             return True
         else:
             return False
