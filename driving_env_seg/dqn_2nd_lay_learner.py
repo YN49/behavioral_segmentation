@@ -32,9 +32,11 @@ print(model.summary())
 
 try:
     model.load_weights('dqn_{}_weights_2nd_layer.h5f'.format(ENV_NAME))
-    print('ロード')
+    print('2層目をロード')
 except:
     pass
+
+print("----------Completed construction of 2nd layer----------")
 
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!

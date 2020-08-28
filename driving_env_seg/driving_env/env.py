@@ -574,20 +574,6 @@ class ENV(gym.Env):
         plt.imshow(figure, cmap='Greys_r')
         plt.show()
 
-    '''
-    def compare_TV(self,loss,val_loss):
-
-        epochs = range(len(loss))
-
-        plt.plot(epochs, loss ,label = 'loss')
-        plt.plot(epochs, val_loss ,label = 'val_loss')
-        plt.xlabel('epochs')
-        plt.grid(b=True, which='major', color='#999999', linestyle='-')
-        plt.legend()
-
-
-        plt.show()'''
-
     
 
 

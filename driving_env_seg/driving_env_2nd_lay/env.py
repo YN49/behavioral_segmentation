@@ -3,7 +3,6 @@ from keras import backend as K
 import matplotlib.pyplot as plt
 import argparse
 
-
 from PIL import Image
 
 import math
@@ -14,7 +13,9 @@ import gym
 import numpy as np
 import gym.spaces
 
+import dqn_tester
 
+import subprocess
 
 class ENV(gym.Env):
     metadata = {'render.modes': ['human', 'ansi']}
@@ -67,7 +68,8 @@ class ENV(gym.Env):
             pass
         self.sync = np.array([False,False],dtype="bool")
 
-        #一層目のDQNを読み込み
+        #一層目のDQNを読み込み (非同期で読み込む)
+        subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_tester.py"])
         
         return self._observe()
 
