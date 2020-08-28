@@ -45,7 +45,7 @@ class ENV(gym.Env):
         self.done = False
         self.steps = 0
         self.original_dim = self.VIEW_SIZE[0] * self.VIEW_SIZE[1]
-        self.sync = np.array([False,False],dtype="bool")
+        self.sync1_2 = np.array([False,False],dtype="bool")
 
         try:
             loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env_seg/env1_env2_comu.npz')
@@ -57,12 +57,10 @@ class ENV(gym.Env):
             ###env2-env1の通信ファイルを作成
             np.savez('強化学習/行動細分化/driving_env/driving_env_seg/env1_env2_comu.npy', self.target, self.obs)
 
-        #同期ファイル確認読み込み
-        try:
-            self.sync = np.load('強化学習/行動細分化/driving_env/driving_env_seg/sync.npz')
-        except FileNotFoundError:
-            pass
-        self.sync = np.array([False,False],dtype="bool")
+
+        #同期ファイルを初期化
+        self.sync1_2 = np.array([False,False],dtype="bool")
+        self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
 
         
         return self._observe()
@@ -70,9 +68,18 @@ class ENV(gym.Env):
 
     def _step(self, action):
 
-        #同期を保存 ついでに初期化
-        self.sync[1] = False
-        np.save('強化学習/行動細分化/driving_env/driving_env_seg/sync',self.sync)
+        #準備ができたので準備完了信号を出す
+        self.sync1_2[0] = True
+        self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
+        while True:
+            self.sync1_2 = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy', dtype="bool")
+            #Falseにenv1がしてきたのでそれを感知して処理開始
+            #多分同時にファイル開かれるとサイズが0になっちゃうからそれを防止する
+            try:
+                if not self.sync1_2[0]:
+                    break
+            except IndexError:
+                pass
 
         #通信用ファイル読み込み
         loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env_seg/env1_env2_comu.npz')
@@ -100,15 +107,6 @@ class ENV(gym.Env):
 
         ###env2-env1の通信ファイルを作成
         np.savez('強化学習/行動細分化/driving_env/driving_env_seg/env1_env2_comu.npz', self.target, self.obs)
-
-        #同期を保存 処理終了のためTrueに
-        self.sync[1] = True
-        np.save('強化学習/行動細分化/driving_env/driving_env_seg/sync',self.sync)
-        while True:
-            self.sync = np.load('強化学習/行動細分化/driving_env/driving_env_seg/sync.npy')
-            #相手の処理が終了したらbreak
-            if self.sync[0]:
-                break
 
 
         return observation, reward, self.done, {}
