@@ -99,7 +99,6 @@ class ENV(gym.Env):
 
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
     INTERVAL = 4
-
     MAX_STEPS = 50
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.25#本来はこれ
@@ -192,13 +191,11 @@ class ENV(gym.Env):
             loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env_seg/data.npz')
             self.x_train = loaded_array['arr_0']
             self.train_data = loaded_array['arr_1']
-            #self.TARGET = loaded_array['arr_2']
             
-            self.update_traget()#ターゲットとりあえずランダム設定
         except FileNotFoundError:
             self.x_train = np.zeros((2,self.original_dim))
             self.train_data = np.array([0,self.INI_POS[0],self.INI_POS[1],self.INI_VEC[0],self.INI_VEC[1]])
-            self.update_traget()#ターゲットとりあえずランダム設定
+
 
         #保存されている位置を利用
         if self.ENABLE_SAVE_POS:
@@ -230,27 +227,41 @@ class ENV(gym.Env):
         self.sync1_2 = np.array([False],dtype="bool")
 
 
+        #一層目の学習はランダムでターゲット設定
+        if not self.lear_method[0]:
+            self.update_traget()#ターゲットとりあえずランダム設定
+        else:
+            #まだターゲットが決まっていないなら0にしておく
+            self.TARGET = np.zeros(self.latent_dim)
+            self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(self.VIEW_SIZE)*255
+            #計算済みの範囲を格納
+            self.range_calcu = (self.RANGE*math.sqrt(self.latent_dim*(1/((1/math.sqrt(2*math.pi))*math.e**((np.sum(self.TARGET**2))/-2)))**2))/math.sqrt(self.latent_dim*2*math.pi)
+
+        #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
+        self.MAX_STEPS = self.MAX_STEPS * self.INTERVAL
+
+
         return self._observe()
         
 
     def _step(self, action):
 
+        #print(self.steps)
+
         #2層目学習時にはENV2の処理を待つ
         if self.lear_method[0]:
-            #1,5,9,13,17(INTERVAL=4の場合)の周期でストップさせる
-            if self.steps % self.INTERVAL == 1:
-                #準備ができたので準備完了信号を出す
-                self.sync1_2[0] = False
-                self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
-                while True:
-                    self.sync1_2 = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy', dtype="bool")
-                    #Trueにenv2がしてきたのでそれを感知して処理開始
-                    #多分同時にファイル開かれるとサイズが0になっちゃうからそれを防止する
-                    try:
-                        if self.sync1_2[0]:
-                            break
-                    except IndexError:
-                        pass
+            #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
+            if self.steps % self.INTERVAL - 1 == 1:
+
+                #決定されたターゲットの読み込み
+                try:
+                    self.TARGET = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/target.npy')
+                except FileNotFoundError:
+                    self.TARGET.tofile('強化学習/行動細分化/driving_env/driving_env_seg/target.npy')
+
+                self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(self.VIEW_SIZE)*255
+                #計算済みの範囲を格納
+                self.range_calcu = (self.RANGE*math.sqrt(self.latent_dim*(1/((1/math.sqrt(2*math.pi))*math.e**((np.sum(self.TARGET**2))/-2)))**2))/math.sqrt(self.latent_dim*2*math.pi)
 
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
@@ -353,6 +364,27 @@ class ENV(gym.Env):
             #保存
             np.savez('強化学習/行動細分化/driving_env/driving_env_seg/data.npz', self.x_train, self.train_data, self.TARGET)
 
+
+        #2層目学習時にはENV2の処理を待つ
+        if self.lear_method[0]:
+            #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
+            if self.steps % self.INTERVAL - 1 == 1:
+                #準備ができたので準備完了信号を出す
+                self.sync1_2[0] = False
+                self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
+
+                #視界(VAEのエンコード結果)の情報をenv2に入力する
+                self.encoded_obs.tofile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
+
+                while True:
+                    self.sync1_2 = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy', dtype="bool")
+                    #Trueにenv2がしてきたのでそれを感知して処理開始
+                    #多分同時にファイル開かれるとサイズが0になっちゃうからそれを防止する
+                    try:
+                        if self.sync1_2[0]:
+                            break
+                    except IndexError:
+                        pass
 
         return observation, reward, self.done, {}
 
