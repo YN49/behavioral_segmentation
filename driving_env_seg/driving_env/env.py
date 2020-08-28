@@ -597,7 +597,6 @@ class ENV(gym.Env):
         self.TARGET_PIC = self.decoder.predict(np.squeeze(self.TARGET)[np.newaxis,:]).reshape(self.VIEW_SIZE)*255
         #計算済みの範囲を格納
         self.range_calcu = (self.RANGE*math.sqrt(self.latent_dim*(1/((1/math.sqrt(2*math.pi))*math.e**((np.sum(self.TARGET**2))/-2)))**2))/math.sqrt(self.latent_dim*2*math.pi)
-        #self.range_calcu = (self.RANGE/(math.sqrt(1/(math.sqrt(2*math.pi)))*math.e**(((math.sqrt(np.sum(self.TARGET**2)))**2)/-2)))/(1/(math.sqrt(1/(math.sqrt(2*math.pi)))))
 
 
     #描画のためにx座標y座標を変換
