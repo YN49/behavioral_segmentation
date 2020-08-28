@@ -187,7 +187,7 @@ class ENV(gym.Env):
 
         self.out_train = np.zeros((2,self.original_dim))
 
-        self.encoded_obs = np.zeros(self.latent_dim, )
+        self.encoded_obs = np.zeros(self.latent_dim, dtype="float64")
         
         try:
             loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env_seg/data.npz')
@@ -232,6 +232,10 @@ class ENV(gym.Env):
         done_signal = np.array([False],dtype="bool")
         done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
 
+        #報酬伝達ファイルを初期化
+        self.rew_signal = np.array([0],dtype="int64")
+        self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+
 
         #一層目の学習はランダムでターゲット設定
         if not self.lear_method[0]:
@@ -266,7 +270,6 @@ class ENV(gym.Env):
                 #計算済みの範囲を格納
                 self.range_calcu = 0.5
 
-        print("1",self.steps)
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
             #加速
@@ -328,8 +331,6 @@ class ENV(gym.Env):
         #現ステップのobservationを教師データに格納
         self.out_train = np.insert(self.out_train, self.out_train.shape[0], self.obs_encoder(), axis=0)
         if self.done:
-
-            print("DONE")#------------------------------------------------------------------------------------------------------------------
             
             #終了時に先端の２つの余計な配列を取り除く
             self.out_train = np.delete(self.out_train, 0, 0)
@@ -380,7 +381,7 @@ class ENV(gym.Env):
                 self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
 
                 #視界(VAEのエンコード結果)の情報をenv2に入力する
-                self.encoded_obs.tofile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
+                np.array(self.encoded_obs,dtype="float64").tofile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
 
                 while True:
                     self.sync1_2 = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy', dtype="bool")
@@ -478,22 +479,31 @@ class ENV(gym.Env):
         # とした
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
             return 300
+        #ゴールに着いたら高い報酬を与える
+        elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
+            self.rew_signal[0] = 2000
+            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+            return 2000
+        #壁にぶつかったら減点
+        elif self.collusion_flg:
+            self.rew_signal[0] = -25
+            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+            return -25
+        #外側走ったらダメだから減点
+        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
+            self.rew_signal[0] = -15
+            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+            return -15
+        #一定の速度で走れば報酬を増やす
+        elif self.SPEED_REW < self.move_vec[0]:
+            self.rew_signal[0] = -1
+            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+            return -1
+        #ステップ毎減点
         else:
-            #ゴールに着いたら高い報酬を与える
-            if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-                return 2000
-            #壁にぶつかったら減点
-            elif self.collusion_flg:
-                return -25
-            #外側走ったらダメだから減点
-            elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-                return -15
-            #一定の速度で走れば報酬を増やす
-            elif self.SPEED_REW < self.move_vec[0]:
-                return -1
-            #ステップ毎減点
-            else:
-                return -5
+            self.rew_signal[0] = -5
+            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+            return -5
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 

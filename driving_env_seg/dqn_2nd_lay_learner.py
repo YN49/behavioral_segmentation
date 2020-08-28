@@ -27,9 +27,9 @@ model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
 #flatten_1 (Flatten)          (None, 4)                 0
 #4だから((2, 2), input_shape=(4, ))/2だったら((2, 1), input_shape=(2, ))
-model.add(Reshape((2, 1), input_shape=(2, )))
+model.add(Reshape((4, 1), input_shape=(4, )))
 #input_shape=(2, 2)=前のと同じ
-model.add(LSTM(50, input_shape=(2, 1), 
+model.add(LSTM(50, input_shape=(4, 1), 
           return_sequences=False))
 model.add(Dense(nb_actions))
 model.add(Activation('linear'))

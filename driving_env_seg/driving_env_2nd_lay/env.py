@@ -29,7 +29,7 @@ class ENV(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=0,
             high=1,
-            shape=(2,)
+            shape=(4,)
         )
         self.reward_range = [-1., 100.]
 
@@ -53,8 +53,8 @@ class ENV(gym.Env):
         self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
 
         #終了伝達ファイルを初期化
-        done_signal = np.array([False],dtype="bool")
-        done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
+        self.done_signal = np.array([False],dtype="bool")
+        self.done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
         
         return self._observe()
 
@@ -75,12 +75,6 @@ class ENV(gym.Env):
                 except IndexError:
                     pass
 
-        #通信用ファイル読み込み
-        #VAEの結果を取得　視界を獲得
-        self.encoded_obs = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
-
-
-        print("2",self.steps)
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
             self.pos = self.pos + np.array([self.SENSITIVITY, 0])
@@ -97,6 +91,7 @@ class ENV(gym.Env):
         self.action = action
         self.steps = self.steps + 1
         observation = self._observe()
+
         reward = self._get_reward()
         self.done = self._is_done()
 
@@ -137,10 +132,12 @@ class ENV(gym.Env):
         # - ダメージはゴール時にまとめて計算
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
-        return -1
+        return np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy', dtype="int64")
 
-    def _observe(self):#今の居場所の座標を人工知能に入力
-        return self.pos
+    def _observe(self):#今の居場所の座標とVAEのOBSを人工知能に入力
+        #通信用ファイル読み込み
+        #VAEの結果を取得　視界を獲得
+        return np.concatenate([np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy',dtype="float64"),self.pos],0)
     
     def _is_done(self):
         #相手が終了したか取得する ENV1からの通信 ENV2からの通信

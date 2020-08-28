@@ -80,4 +80,4 @@ if not lear_method[0]:
 
 else:
     # Finally, evaluate our algorithm for 5 episodes.
-    dqn.test(env, nb_episodes=10, visualize=True)
+    dqn.test(env, nb_episodes=100, visualize=True)
