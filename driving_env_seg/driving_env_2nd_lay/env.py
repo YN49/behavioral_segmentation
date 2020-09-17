@@ -31,7 +31,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-1., 100.]
+        self.reward_range = [-1., 2000.]
 
         self._reset()
 
@@ -111,7 +111,7 @@ class ENV(gym.Env):
             except IndexError:
                 pass
 
-
+        #print(observation,"---------------------------------------------------------------")
         return observation, reward, self.done, {}
 
     def _render(self, mode='human', close=False):
@@ -132,7 +132,13 @@ class ENV(gym.Env):
         # - ダメージはゴール時にまとめて計算
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
-        return np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy', dtype="int64")
+        reward = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy', dtype="int64")[0]
+        #何もターゲットが設定されないのを避ける
+        if reward == -5:
+            reward = -20
+        if self.action == 4:
+            reward = reward + 3
+        return reward
 
     def _observe(self):#今の居場所の座標とVAEのOBSを人工知能に入力
         #通信用ファイル読み込み

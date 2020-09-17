@@ -79,7 +79,7 @@ class ENV(gym.Env):
     SPEED_LIM = 2
     VIEW_SIZE = (15,15)
     #初期位置
-    INI_POS = [20, 28]
+    INI_POS = [42, 10]
     #初期のベクトル情報
     INI_VEC = [0,90]
     #居場所を保存するか
@@ -100,15 +100,14 @@ class ENV(gym.Env):
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
     INTERVAL = 4
     MAX_STEPS = 50
-    #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
-    MAX_STEPS = MAX_STEPS * (INTERVAL - 1) + (INTERVAL - 1) * 2
+
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.25#本来はこれ
 
     #vaeのエポック数10
     epochs = 50
     #何stepに一回学習するか200
-    TRAIN_FREQ = 10000
+    TRAIN_FREQ = 20000
 
     original_dim = VIEW_SIZE[0] * VIEW_SIZE[1]
 
@@ -220,6 +219,12 @@ class ENV(gym.Env):
 
         #学習モード取得 Trueは2層目学習 Falseは1層目学習
         self.lear_method = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/lear_method.npy', dtype="bool")
+
+        #２層目のときはmaxを増やしてもいいので増やす
+        if self.lear_method[0]:
+            #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
+            self.MAX_STEPS = self.MAX_STEPS * (self.INTERVAL - 1) + (self.INTERVAL - 1) * 2
+
         """
         if self.lear_method[0]:
             print("===========================ENV1:2層目の学習であることを認知しました===========================")
@@ -376,12 +381,13 @@ class ENV(gym.Env):
         if self.lear_method[0]:
             #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
             if self.steps % (self.INTERVAL - 1) == 1:
-                #準備ができたので準備完了信号を出す
-                self.sync1_2[0] = False
-                self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
 
                 #視界(VAEのエンコード結果)の情報をenv2に入力する
                 np.array(self.encoded_obs,dtype="float64").tofile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
+
+                #準備ができたので準備完了信号を出す
+                self.sync1_2[0] = False
+                self.sync1_2.tofile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy')
 
                 while True:
                     self.sync1_2 = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/sync1_2.npy', dtype="bool")
@@ -478,6 +484,8 @@ class ENV(gym.Env):
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
+            self.rew_signal[0] = -1
+            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
             return 300
         #ゴールに着いたら高い報酬を与える
         elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:

@@ -13,6 +13,11 @@ if 'session' in locals() and session is not None:
     print('Close interactive session')
     session.close()
 
+
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+
 ENV_NAME = 'driving_seg2-v0'
 
 # Get the environment and extract the number of actions.
@@ -35,6 +40,20 @@ model.add(Dense(nb_actions))
 model.add(Activation('linear'))
 print(model.summary())
 
+'''
+model = Sequential()
+model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
+model.add(Dense(16))
+model.add(Activation('relu'))
+model.add(Dense(16))
+model.add(Activation('relu'))
+model.add(Dense(16))
+model.add(Activation('relu'))
+model.add(Dense(nb_actions))
+model.add(Activation('linear'))
+print(model.summary())
+'''
+
 try:
     model.load_weights('dqn_{}_weights_2nd_layer.h5f'.format(ENV_NAME))
     print('2層目をロード')
@@ -55,7 +74,7 @@ dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
 # Ctrl + C.
-dqn.fit(env, nb_steps=10000, visualize=True, verbose=1)
+dqn.fit(env, nb_steps=100000, visualize=False, verbose=1)
 
 # After training is done, we save the final weights.
 dqn.save_weights('dqn_{}_weights_2nd_layer.h5f'.format(ENV_NAME), overwrite=True)

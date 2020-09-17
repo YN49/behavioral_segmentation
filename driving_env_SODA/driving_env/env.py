@@ -66,7 +66,7 @@ class ENV(gym.Env):
     #ウインドウの場所とサイズ x y size(何倍か)
     WINDOW_DATA = [[0,0,10],
                   [200,0,10],
-                  [0,200,2],
+                  [0,200,1.3],
                   [500,300,40]]
 
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
@@ -79,7 +79,7 @@ class ENV(gym.Env):
     SPEED_LIM = 2
     VIEW_SIZE = (15,15)
     #初期位置
-    INI_POS = [20, 28]
+    INI_POS = [45, 15]
     #初期のベクトル情報
     INI_VEC = [0,90]
     #居場所を保存するか
@@ -113,7 +113,7 @@ class ENV(gym.Env):
     ENABLE_VAR = True
     #何ステップ分の教師データを保存するか
     X_TRAIN_RANGE = 80000
-
+    
     # VAE parameters
     input_shape = (original_dim, )
     #中間層
