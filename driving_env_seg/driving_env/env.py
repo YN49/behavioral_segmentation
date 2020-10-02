@@ -72,14 +72,14 @@ class ENV(gym.Env):
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
     ACCEL = 0.7*0.5
     #何度ハンドルを曲げられるか
-    ANG_HNG = 10*0.5
+    ANG_HNG = 10*0.7
     #スピードの上限
     #一定以上の速度で走れば報酬を与える
-    SPEED_REW = 0.3
+    SPEED_REW = 1.2
     SPEED_LIM = 2
     VIEW_SIZE = (15,15)
     #初期位置
-    INI_POS = [42, 10]
+    INI_POS = [10, 10]
     #初期のベクトル情報
     INI_VEC = [0,90]
     #居場所を保存するか
@@ -98,19 +98,18 @@ class ENV(gym.Env):
     weights_filename = '強化学習/行動細分化/driving_env/driving_env_seg/vae.hdf5'
 
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
-    INTERVAL = 4
+    INTERVAL = 3
     MAX_STEPS = 50
 
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
-    RANGE = 0.25#本来はこれ
+    RANGE = 0.21#本来はこれ
 
     #vaeのエポック数10
-    epochs = 50
+    epochs = 10
     #何stepに一回学習するか200
     TRAIN_FREQ = 20000
 
     original_dim = VIEW_SIZE[0] * VIEW_SIZE[1]
-
 
     #VAEの学習を実行するか
     ENABLE_VAR = True
@@ -166,7 +165,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-30., 2000.]
+        self.reward_range = [-100., 10000.]
 
         self._reset()
 
@@ -181,6 +180,8 @@ class ENV(gym.Env):
         self.move_vec = [0,0]
         self.done = False
         self.steps = 0
+
+        self.pre_reward = np.zeros(2,dtype="int64")
 
         self.reset_rend = False
 
@@ -260,9 +261,9 @@ class ENV(gym.Env):
 
         #print(self.steps)
 
-        #2層目学習時にはENV2の処理を待つ
+        #2層目学習時にはENV2のターゲット情報を獲得する
         if self.lear_method[0]:
-            #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
+            #1,5,9,13,17(INTERVAL=5の場合)の周期で受け取る
             if self.steps % (self.INTERVAL - 1) == 1:
 
                 #決定されたターゲットの読み込み
@@ -333,6 +334,7 @@ class ENV(gym.Env):
         self.done = self._is_done()
 
 
+
         #現ステップのobservationを教師データに格納
         self.out_train = np.insert(self.out_train, self.out_train.shape[0], self.obs_encoder(), axis=0)
         if self.done:
@@ -376,11 +378,16 @@ class ENV(gym.Env):
             #保存
             np.savez('強化学習/行動細分化/driving_env/driving_env_seg/data.npz', self.x_train, self.train_data, self.TARGET)
 
-
+        ############ 同期 ############
         #2層目学習時にはENV2の処理を待つ
         if self.lear_method[0]:
+            self.pre_reward[0] = self.pre_reward[0] + reward
             #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
             if self.steps % (self.INTERVAL - 1) == 1:
+
+                #報酬を伝達
+                self.pre_reward.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
+                self.pre_reward[0] = 0
 
                 #視界(VAEのエンコード結果)の情報をenv2に入力する
                 np.array(self.encoded_obs,dtype="float64").tofile('強化学習/行動細分化/driving_env/driving_env_seg/encoded_obs.npy')
@@ -484,34 +491,22 @@ class ENV(gym.Env):
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
-            self.rew_signal[0] = -1
-            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
             return 300
         #ゴールに着いたら高い報酬を与える
         elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-            self.rew_signal[0] = 2000
-            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
-            return 2000
+            return 10000
         #壁にぶつかったら減点
         elif self.collusion_flg:
-            self.rew_signal[0] = -25
-            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
-            return -25
+            return -100
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            self.rew_signal[0] = -15
-            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
-            return -15
+            return -100####################################################################################################################################################
         #一定の速度で走れば報酬を増やす
         elif self.SPEED_REW < self.move_vec[0]:
-            self.rew_signal[0] = -1
-            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
-            return -1
+            return 1
         #ステップ毎減点
         else:
-            self.rew_signal[0] = -5
-            self.rew_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
-            return -5
+            return -1
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -544,10 +539,15 @@ class ENV(gym.Env):
             done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
 
             return True
+        #円の中に入ったら終了
         elif (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
             return True
         #終了伝達がきたら終了
         elif done_signal[0]:
+            return True
+        ####################################################################################################################################################
+        #壁にぶつかったら終了
+        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
             return True
         else:
             return False

@@ -31,7 +31,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-1., 2000.]
+        self.reward_range = [-400., 15000.]
 
         self._reset()
 
@@ -75,6 +75,7 @@ class ENV(gym.Env):
                 except IndexError:
                     pass
 
+        self.pre_target = self.target
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
             self.pos = self.pos + np.array([self.SENSITIVITY, 0])
@@ -87,6 +88,7 @@ class ENV(gym.Env):
         else:#ターゲット決定
             self.target[0] = self.pos[0]
             self.target[1] = self.pos[1]
+
 
         self.action = action
         self.steps = self.steps + 1
@@ -134,10 +136,11 @@ class ENV(gym.Env):
         # とした
         reward = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy', dtype="int64")[0]
         #何もターゲットが設定されないのを避ける
-        if reward == -5:
-            reward = -20
-        if self.action == 4:
-            reward = reward + 3
+        #if reward == -5:
+        #    reward = -20
+        """
+        if self.action == 4 and not (self.pre_target[0] == self.target[0] and self.pre_target[1] == self.target[1]):
+            reward = reward + 10"""
         return reward
 
     def _observe(self):#今の居場所の座標とVAEのOBSを人工知能に入力

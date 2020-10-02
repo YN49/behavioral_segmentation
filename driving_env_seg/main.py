@@ -25,6 +25,7 @@ while True:
     try:
         if dqntes_main[0]:
             break
+        
     except IndexError:
         pass
         
