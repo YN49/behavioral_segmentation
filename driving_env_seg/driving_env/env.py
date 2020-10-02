@@ -165,7 +165,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-100., 10000.]
+        self.reward_range = [-500., 10000.]
 
         self._reset()
 
@@ -497,10 +497,10 @@ class ENV(gym.Env):
             return 10000
         #壁にぶつかったら減点
         elif self.collusion_flg:
-            return -100
+            return -500
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return -100####################################################################################################################################################
+            return -500####################################################################################################################################################
         #一定の速度で走れば報酬を増やす
         elif self.SPEED_REW < self.move_vec[0]:
             return 1

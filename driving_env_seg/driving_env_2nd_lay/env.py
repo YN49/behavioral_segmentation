@@ -31,7 +31,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-400., 15000.]
+        self.reward_range = [-2000., 15000.]
 
         self._reset()
 
