@@ -39,7 +39,7 @@ class ENV(gym.Env):
 
     def _reset(self):
         # 諸々の変数を初期化する
-        self.pos = np.array([0, 0])#画面の座標x,画面のディレクトリ
+        self.pos = np.array([0, 0],dtype="float64")#画面の座標x,画面のディレクトリ
         #ターゲット格納
         self.target = np.array([0, 0],dtype="float64")
         self.done = False

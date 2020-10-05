@@ -29,7 +29,7 @@ class ENV(gym.Env):
     def __init__(self):
         super().__init__()
         # action_space, observation_space, reward_range を設定する
-        self.action_space = gym.spaces.Box(low=self.LOW, high=self.HIGH)  # x y 決定  (95%信頼区間の+-2)
+        self.action_space = gym.spaces.Box(low=self.LOW, high=self.HIGH, dtype=np.float32)  # x y 決定  (95%信頼区間の+-2)
         self.observation_space = gym.spaces.Box(
             low=0,
             high=1,
@@ -43,7 +43,7 @@ class ENV(gym.Env):
 
     def _reset(self):
         # 諸々の変数を初期化する
-        self.pos = np.array([0, 0])#画面の座標x,画面のディレクトリ
+        self.pos = np.array([0, 0],dtype="float64")#画面の座標x,画面のディレクトリ
         #ターゲット格納
         self.target = np.array([0, 0],dtype="float64")
         self.done = False
@@ -79,6 +79,9 @@ class ENV(gym.Env):
                 except IndexError:
                     pass
 
+
+        #actionが+-2超えたら戻す必要ありかも
+        action = np.clip(action, self.LOW[0], self.HIGH[0])
         self.pre_target = self.target
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
 
@@ -91,7 +94,7 @@ class ENV(gym.Env):
             self.target[1] = self.pos[1]
 
 
-
+        
         self.action = action
         self.steps = self.steps + 1
         observation = self._observe()
