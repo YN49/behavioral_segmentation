@@ -547,10 +547,14 @@ class ENV(gym.Env):
             return True
         ####################################################################################################################################################
         #壁にぶつかったら終了
-        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return True
+        
         else:
             return False
+
+        """#######################################################################################################################################################
+        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
+            return True
+        """
 
     #VAE
     def VAE(self):
