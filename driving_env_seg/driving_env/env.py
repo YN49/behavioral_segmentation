@@ -79,7 +79,7 @@ class ENV(gym.Env):
     SPEED_LIM = 2
     VIEW_SIZE = (15,15)
     #初期位置
-    INI_POS = [10, 10]
+    INI_POS = [20, 15]
     #初期のベクトル情報
     INI_VEC = [0,90]
     #居場所を保存するか
@@ -188,6 +188,8 @@ class ENV(gym.Env):
         self.out_train = np.zeros((2,self.original_dim))
 
         self.encoded_obs = np.zeros(self.latent_dim, dtype="float64")
+
+        self.achievement_flg = False
         
         try:
             loaded_array = np.load('強化学習/行動細分化/driving_env/driving_env_seg/data.npz')
@@ -260,6 +262,8 @@ class ENV(gym.Env):
     def _step(self, action):
 
         #print(self.steps)
+        self.pre_TARGET = self.TARGET
+        self.pre_range_calcu = self.range_calcu
 
         #2層目学習時にはENV2のターゲット情報を獲得する
         if self.lear_method[0]:
@@ -308,17 +312,17 @@ class ENV(gym.Env):
         #視界のサイズにあわせて数字の大きさ変えないとね
         #端っこに衝突したら減点
         self.collusion_flg = False
-        if self.PIC.shape[0] - math.floor(self.VIEW_SIZE[0]) < next_pos[0]:
-            self.pos[0] = self.PIC.shape[0] - math.ceil(self.VIEW_SIZE[0])
+        if self.PIC.shape[0] - math.ceil(self.VIEW_SIZE[0]/2) < next_pos[0]:
+            self.pos[0] = self.PIC.shape[0] - math.ceil(self.VIEW_SIZE[0]/2)
             self.collusion_flg = True
-        if next_pos[0] <= math.floor(self.VIEW_SIZE[0]):
-            self.pos[0] = math.ceil(self.VIEW_SIZE[0])
+        if next_pos[0] <= math.ceil(self.VIEW_SIZE[0]/2):
+            self.pos[0] = math.ceil(self.VIEW_SIZE[0]/2)
             self.collusion_flg = True
-        if self.PIC.shape[1] - math.floor(self.VIEW_SIZE[1]) < next_pos[1]:
-            self.pos[1] = self.PIC.shape[1] - math.ceil(self.VIEW_SIZE[1])
+        if self.PIC.shape[1] - math.ceil(self.VIEW_SIZE[1]/2) < next_pos[1]:
+            self.pos[1] = self.PIC.shape[1] - math.ceil(self.VIEW_SIZE[1]/2)
             self.collusion_flg = True
-        if  next_pos[1] <= math.floor(self.VIEW_SIZE[1]):
-            self.pos[1] = math.ceil(self.VIEW_SIZE[1])
+        if  next_pos[1] <= math.ceil(self.VIEW_SIZE[1]/2):
+            self.pos[1] = math.ceil(self.VIEW_SIZE[1]/2)
             self.collusion_flg = True
 
         self.int_pos = np.array(self.pos,dtype="int64")
@@ -333,6 +337,14 @@ class ENV(gym.Env):
         reward = self._get_reward()
         self.done = self._is_done()
 
+
+
+        #どっちのモードでも描画用に達成したかを保存
+        if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
+            self.achievement_flg = True
+        #一回達成したらターゲット更新 一層目学習のときのみ有効
+        if (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
+            self.update_traget()#ターゲットとりあえずランダム設定
 
 
         #現ステップのobservationを教師データに格納
@@ -461,12 +473,13 @@ class ENV(gym.Env):
         pygame.draw.line(self.screen, (255,255,255), (self.covX(3,3),self.covY(3,0)), (self.covX(3,-3),self.covY(3,0)))
 
         #円の中心を点に
-        pygame.gfxdraw.pixel(self.screen, self.covX(3,self.TARGET[0]), self.covY(3,self.TARGET[1]), (255,255,255))
+        pygame.gfxdraw.pixel(self.screen, self.covX(3,self.pre_TARGET[0]), self.covY(3,self.pre_TARGET[1]), (255,255,255))
 
-        if not math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
-            pygame.draw.circle(self.screen, (255,255,255), (self.covX(3,self.TARGET[0]), self.covY(3,self.TARGET[1])), int(self.WINDOW_DATA[3][2]*self.range_calcu), 1)
+        if not self.achievement_flg:
+            pygame.draw.circle(self.screen, (255,255,255), (self.covX(3,self.pre_TARGET[0]), self.covY(3,self.pre_TARGET[1])), int(self.WINDOW_DATA[3][2]*self.pre_range_calcu), 1)
         else:#中に入ると塩が赤く
-            pygame.draw.circle(self.screen, (255,0,0), (self.covX(3,self.TARGET[0]), self.covY(3,self.TARGET[1])), int(self.WINDOW_DATA[3][2]*self.range_calcu), 2)
+            pygame.draw.circle(self.screen, (255,0,0), (self.covX(3,self.pre_TARGET[0]), self.covY(3,self.pre_TARGET[1])), int(self.WINDOW_DATA[3][2]*self.pre_range_calcu), 2)
+            self.achievement_flg = False
 
         if self.reset_rend:#一度目の処理じゃない場合
             pygame.draw.line(self.screen, (255,255,255), (self.covX(3,self.encoded_obs[0]), self.covY(3,self.encoded_obs[1])), (self.befo_pixpos[0],self.befo_pixpos[1]))
@@ -490,8 +503,10 @@ class ENV(gym.Env):
         # - ダメージはゴール時にまとめて計算
         # - 1ステップごとに-1ポイント(できるだけ短いステップでゴールにたどり着きたい)
         # とした
+        #円の中に入ったら終了
+
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
-            return 300
+            return 500
         #ゴールに着いたら高い報酬を与える
         elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
             return 10000
@@ -503,10 +518,10 @@ class ENV(gym.Env):
             return -500####################################################################################################################################################
         #一定の速度で走れば報酬を増やす
         elif self.SPEED_REW < self.move_vec[0]:
-            return 1
+            return -1
         #ステップ毎減点
         else:
-            return -1
+            return -10
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -539,20 +554,25 @@ class ENV(gym.Env):
             done_signal.tofile('強化学習/行動細分化/driving_env/driving_env_seg/done_signal.npy')
 
             return True
-        #円の中に入ったら終了
-        elif (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
-            return True
         #終了伝達がきたら終了
         elif done_signal[0]:
             return True
         ####################################################################################################################################################
+        #障害物にぶつかったら終了
+        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
+            return True
         #壁にぶつかったら終了
+        elif self.collusion_flg:
+            return True
         
         else:
             return False
 
         """#######################################################################################################################################################
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
+            return True
+        #円の中に入ったら終了
+        elif (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
             return True
         """
 

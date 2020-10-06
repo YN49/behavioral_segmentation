@@ -56,12 +56,12 @@ critic = Model(inputs=[action_input, observation_input], outputs=x)
 print(critic.summary())
 try:
     actor.load_weights('ddpg_{}_weights_actor.h5f'.format(ENV_NAME))
-    print('actor loading completed')
+    print('----------------actor loading completed----------------')
 except:
     pass
 try:
     critic.load_weights('ddpg_{}_weights_critic.h5f'.format(ENV_NAME))
-    print('critic loading completed')
+    print('----------------critic loading completed----------------')
 except:
     pass
 memory = SequentialMemory(limit=50000, window_length=1)

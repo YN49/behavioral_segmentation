@@ -13,4 +13,7 @@ lear_method.tofile('強化学習/行動細分化/driving_env/driving_env_seg/lea
 
 print("==========Start loading the 1st layer==========")
 #1層目のDQNを読み込み
+#import dqn_1st_lay
 subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_1st_lay.py"])
+#import agent57
+#subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/agent57.py"])

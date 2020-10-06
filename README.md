@@ -19,7 +19,7 @@ driving_env_SODAがSODAのプログラムデータ
 
 + windows 10
 + python 3.6.8
-+ tensorflow-gpu 1.111.0
++ tensorflow-gpu 1.11.0
 + Keras 2.1.0
 + keras-rl 0.4.0
 + gym 0.17.1
