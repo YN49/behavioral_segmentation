@@ -8,11 +8,16 @@ from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
 from rl.memory import SequentialMemory
 
+import tensorflow as tf
+
 #https://www.it-swarm.dev/ja/tensorflow/tensorflow%EF%BC%9Ainternalerror%EF%BC%9Ablas-sgemm%E3%81%AE%E8%B5%B7%E5%8B%95%E3%81%AB%E5%A4%B1%E6%95%97%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/824534956/
 if 'session' in locals() and session is not None:
     print('Close interactive session')
     session.close()
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+sess = tf.Session(config=config)
 
 
 #学習モード取得 Trueは2層目学習 Falseは1層目学習
@@ -47,11 +52,11 @@ model.add(Activation('linear'))
 
 model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
-model.add(Dense(8))
+model.add(Dense(16))
 model.add(Activation('relu'))
-model.add(Dense(8))
+model.add(Dense(16))
 model.add(Activation('relu'))
-model.add(Dense(8))
+model.add(Dense(16))
 model.add(Activation('relu'))
 model.add(Dense(nb_actions))
 model.add(Activation('linear'))
@@ -86,7 +91,7 @@ if not lear_method[0]:
     # Okay, now it's time to learn something! We visualize the training here for show, but this
     # slows down training quite a lot. You can always safely abort the training prematurely using
     # Ctrl + C.
-    dqn.fit(env, nb_steps=100000, visualize=False, verbose=1)
+    dqn.fit(env, nb_steps=10000, visualize=True, verbose=1)
 
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
@@ -96,6 +101,6 @@ if not lear_method[0]:
 
 else:
     # Finally, evaluate our algorithm for 5 episodes.
-    dqn.test(env, nb_episodes=400000, visualize=True, verbose=0)
+    dqn.test(env, nb_episodes=400000, visualize=False, verbose=0)
 
     print("----------------finish----------------") 

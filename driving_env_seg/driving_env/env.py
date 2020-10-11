@@ -64,20 +64,25 @@ class ENV(gym.Env):
     WIDTH = 950
     HEIGHT = 450
     #ウインドウの場所とサイズ x y size(何倍か)
+    """
     WINDOW_DATA = [[0,0,10],
                   [200,0,10],
+                  [0,200,2],
+                  [500,300,40]]"""
+    WINDOW_DATA = [[0,0,5],
+                  [200,0,5],
                   [0,200,2],
                   [500,300,40]]
 
     #車の加速度 1タイムステップどのくらいの速度加速するかOR減速するか
-    ACCEL = 0.7*0.5
+    ACCEL = 0.7*0.1
     #何度ハンドルを曲げられるか
-    ANG_HNG = 10*0.7
+    ANG_HNG = 10*0.6
     #スピードの上限
     #一定以上の速度で走れば報酬を与える
-    SPEED_REW = 1.2
-    SPEED_LIM = 2
-    VIEW_SIZE = (15,15)
+    SPEED_REW = 0.4
+    SPEED_LIM = 1.6
+    VIEW_SIZE = (30,30)
     #初期位置
     INI_POS = [20, 15]
     #初期のベクトル情報
@@ -105,9 +110,9 @@ class ENV(gym.Env):
     RANGE = 0.21#本来はこれ
 
     #vaeのエポック数10
-    epochs = 10
+    epochs = 100
     #何stepに一回学習するか200
-    TRAIN_FREQ = 20000
+    TRAIN_FREQ = 10000
 
     original_dim = VIEW_SIZE[0] * VIEW_SIZE[1]
 
@@ -165,7 +170,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-500., 10000.]
+        self.reward_range = [-300., 2000.]
 
         self._reset()
 
@@ -288,8 +293,8 @@ class ENV(gym.Env):
             if self.SPEED_LIM < self.move_vec[0]:
                 self.move_vec[0] = self.SPEED_LIM
         elif action == 1:
-            #減速
-            self.move_vec[0] = self.move_vec[0] - self.ACCEL
+            #減速   ブレーキはアクセルより効きが良い
+            self.move_vec[0] = self.move_vec[0] - self.ACCEL * 3
             if self.move_vec[0] < 0:
                 self.move_vec[0] = 0
         elif action == 2:
@@ -506,22 +511,22 @@ class ENV(gym.Env):
         #円の中に入ったら終了
 
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
-            return 500
+            return 300
         #ゴールに着いたら高い報酬を与える
-        elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
-            return 10000
+        elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
+            return 2000
         #壁にぶつかったら減点
         elif self.collusion_flg:
-            return -500
+            return -300
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return -500####################################################################################################################################################
+            return -300####################################################################################################################################################
         #一定の速度で走れば報酬を増やす
         elif self.SPEED_REW < self.move_vec[0]:
             return -1
         #ステップ毎減点
         else:
-            return -10
+            return -8
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -573,6 +578,13 @@ class ENV(gym.Env):
             return True
         #円の中に入ったら終了
         elif (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
+            return True
+
+        #障害物にぶつかったら終了
+        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
+            return True
+        #壁にぶつかったら終了
+        elif self.collusion_flg:
             return True
         """
 

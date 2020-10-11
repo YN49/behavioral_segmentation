@@ -35,7 +35,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-2000., 15000.]
+        self.reward_range = [-1200., 8000.]
 
         self._reset()
 
@@ -146,6 +146,12 @@ class ENV(gym.Env):
         """
         if self.action == 4 and not (self.pre_target[0] == self.target[0] and self.pre_target[1] == self.target[1]):
             reward = reward + 10"""
+        if self.LOW[0] < self.action[0] < self.HIGH[0]:
+            reward = reward + 1
+        if self.LOW[0] < self.action[1] < self.HIGH[0]:
+            reward = reward + 1
+        if self.LOW[0] < self.action[2] < self.HIGH[0]:
+            reward = reward + 1
         return reward
 
     def _observe(self):#今の居場所の座標とVAEのOBSを人工知能に入力
