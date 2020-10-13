@@ -96,7 +96,7 @@ def run_gym_dqn(
     else:
         print("weight load: " + log.max_reward_file)
         agent.load_weights(log.max_reward_file)
-    agent.test(env, nb_episodes=5, visualize=True)
+    agent.test(env, nb_episodes=400000, visualize=True)#####################################################################################################
 
     # 動画保存用
     if movie_save:

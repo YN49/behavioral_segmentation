@@ -81,8 +81,8 @@ class ENV(gym.Env):
     #スピードの上限
     #一定以上の速度で走れば報酬を与える
     SPEED_REW = 0.4
-    SPEED_LIM = 1.6
-    VIEW_SIZE = (30,30)
+    SPEED_LIM = 1.2
+    VIEW_SIZE = (20,20)
     #初期位置
     INI_POS = [20, 15]
     #初期のベクトル情報
@@ -95,7 +95,7 @@ class ENV(gym.Env):
     #道路の外側の色の濃さ　この色の濃さのところを通るとマイナスの報酬が
     OUTSIDE = 0
     #ゴールの色の濃さ ここを通ると報酬が発生
-    GOAL = 64
+    GOAL = 200
     #ゴールとか障害物の値の誤差範囲
     ERROR_OF_PIX_VAL = 5
 
@@ -103,14 +103,15 @@ class ENV(gym.Env):
     weights_filename = '強化学習/行動細分化/driving_env/driving_env_seg/vae.hdf5'
 
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
-    INTERVAL = 3
-    MAX_STEPS = 50
+    INTERVAL = 4
+    MAX_STEPS = 150
 
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.21#本来はこれ
 
     #vaeのエポック数10
-    epochs = 100
+    epochs = 1
+    #epochs = 15
     #何stepに一回学習するか200
     TRAIN_FREQ = 10000
 
@@ -170,7 +171,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-300., 2000.]
+        self.reward_range = [-500., 10000.]
 
         self._reset()
 
@@ -285,6 +286,8 @@ class ENV(gym.Env):
                 #計算済みの範囲を格納
                 self.range_calcu = 0.5
 
+        if self.TARGET[0] + self.TARGET[1] == 0:
+            action = 4
         # 1ステップ進める処理を記述。戻り値は observation, reward, done(ゲーム終了したか), info(追加の情報の辞書)
         if action == 0:
             #加速
@@ -400,7 +403,7 @@ class ENV(gym.Env):
         if self.lear_method[0]:
             self.pre_reward[0] = self.pre_reward[0] + reward
             #1,5,9,13,17(INTERVAL=5の場合)の周期でストップさせる
-            if self.steps % (self.INTERVAL - 1) == 1:
+            if self.steps % (self.INTERVAL - 1) == 1 or self.done:
 
                 #報酬を伝達
                 self.pre_reward.tofile('強化学習/行動細分化/driving_env/driving_env_seg/rew_signal.npy')
@@ -510,23 +513,24 @@ class ENV(gym.Env):
         # とした
         #円の中に入ったら終了
 
-        if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
-            return 300
         #ゴールに着いたら高い報酬を与える
-        elif self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
-            return 2000
+        #if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
+        if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
+            return 10000
         #壁にぶつかったら減点
         elif self.collusion_flg:
-            return -300
+            return -500
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return -300####################################################################################################################################################
+            return -50####################################################################################################################################################
         #一定の速度で走れば報酬を増やす
+        elif math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
+            return 500
         elif self.SPEED_REW < self.move_vec[0]:
-            return -1
+            return 0
         #ステップ毎減点
         else:
-            return -8
+            return -40
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 
@@ -563,12 +567,6 @@ class ENV(gym.Env):
         elif done_signal[0]:
             return True
         ####################################################################################################################################################
-        #障害物にぶつかったら終了
-        elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return True
-        #壁にぶつかったら終了
-        elif self.collusion_flg:
-            return True
         
         else:
             return False

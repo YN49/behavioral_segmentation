@@ -203,7 +203,11 @@ def run_agent57(enable_train):
 
 
 #----------------------
-
+import numpy as np
+#ロードが完了したことを伝える
+dqntes_main = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/dqntes_main.npy', dtype="bool")
+dqntes_main[0] = True
+dqntes_main.tofile('強化学習/行動細分化/driving_env/driving_env_seg/dqntes_main.npy')
 
 #if __name__ == '__main__':
 

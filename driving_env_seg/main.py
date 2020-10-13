@@ -21,6 +21,7 @@ dqntes_main.tofile('強化学習/行動細分化/driving_env/driving_env_seg/dqn
 print("==========Start loading the 1st layer==========")
 #1層目のDQNを読み込み (非同期で読み込む)
 subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_1st_lay.py"])
+#import agent57
 
 while True:
     dqntes_main = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/dqntes_main.npy', dtype="bool")

@@ -35,7 +35,7 @@ class ENV(gym.Env):
             high=1,
             shape=(4,)
         )
-        self.reward_range = [-1200., 8000.]
+        self.reward_range = [-2000., 40000.]
 
         self._reset()
 
@@ -89,7 +89,7 @@ class ENV(gym.Env):
         self.pos[0] = action[0]
         self.pos[1] = action[1]
         #もしaction2が1より大きかったらターゲット決定アクションとして取る
-        if action[2] > 1:
+        if action[2] > 0:
             self.target[0] = self.pos[0]
             self.target[1] = self.pos[1]
 
@@ -117,6 +117,8 @@ class ENV(gym.Env):
                     break
             except IndexError:
                 pass
+
+        #print("aaaa",reward)
 
         #print(observation,"---------------------------------------------------------------")
         return observation, reward, self.done, {}
