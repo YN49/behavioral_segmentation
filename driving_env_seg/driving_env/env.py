@@ -516,13 +516,14 @@ class ENV(gym.Env):
         #ゴールに着いたら高い報酬を与える
         #if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
         if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
+            #pass
             return 10000
         #壁にぶつかったら減点
         elif self.collusion_flg:
             return -500
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return -50####################################################################################################################################################
+            return -50#####-500###############################################################################################################################################
         #一定の速度で走れば報酬を増やす
         elif math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
             return 500
