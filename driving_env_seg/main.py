@@ -2,7 +2,7 @@ import subprocess
 import numpy as np
 
 
-ENABLE_DDPG = False
+ENABLE_DDPG = True
 
 
 #https://www.it-swarm.dev/ja/tensorflow/tensorflow%EF%BC%9Ainternalerror%EF%BC%9Ablas-sgemm%E3%81%AE%E8%B5%B7%E5%8B%95%E3%81%AB%E5%A4%B1%E6%95%97%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/824534956/
@@ -20,9 +20,31 @@ dqntes_main.tofile('強化学習/行動細分化/driving_env/driving_env_seg/dqn
 
 print("==========Start loading the 1st layer==========")
 #1層目のDQNを読み込み (非同期で読み込む)
-subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_1st_lay.py"])
-#import agent57
+#subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_1st_lay.py"])
+#import dqn_1st_lay
 
+
+import threading
+
+def worker1():
+    #import agent57
+    import dqn_1st_lay
+
+def worker2():
+    
+    print("==========Start loading the 2nd layer==========")
+    #2層目のDQNを読み込み (非同期で読み込む)
+    if ENABLE_DDPG:
+        subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/ddpg_2nd_lay_learner.py"])
+        #subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/naf_2nd_lay_learner.py"])
+    else:
+        subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_2nd_lay_learner.py"])
+
+
+t1 = threading.Thread(target=worker1)
+t2 = threading.Thread(target=worker2)
+
+t1.start()
 while True:
     dqntes_main = np.fromfile('強化学習/行動細分化/driving_env/driving_env_seg/dqntes_main.npy', dtype="bool")
     #ロード完了したらTrueになるのでそうなったら開放する
@@ -33,12 +55,6 @@ while True:
         
     except IndexError:
         pass
-        
 
-print("==========Start loading the 2nd layer==========")
-#2層目のDQNを読み込み (非同期で読み込む)
-if ENABLE_DDPG:
-    #subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/ddpg_2nd_lay_learner.py"])
-    subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/naf_2nd_lay_learner.py"])
-else:
-    subprocess.Popen(["python","強化学習/行動細分化/driving_env/driving_env_seg/dqn_2nd_lay_learner.py"])
+t2.start()
+        
