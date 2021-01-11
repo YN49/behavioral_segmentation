@@ -15,9 +15,15 @@ if 'session' in locals() and session is not None:
     print('Close interactive session')
     session.close()
 
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-sess = tf.Session(config=config)
+
+#メモリ使用制限
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+  except RuntimeError as e:
+    print(e)
 
 
 #学習モード取得 Trueは2層目学習 Falseは1層目学習
@@ -85,22 +91,34 @@ dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmu
 dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
 
-
 #===========================1層目を学習します===========================
 if not lear_method[0]:
     # Okay, now it's time to learn something! We visualize the training here for show, but this
     # slows down training quite a lot. You can always safely abort the training prematurely using
     # Ctrl + C.
-    dqn.fit(env, nb_steps=10000, visualize=True, verbose=1)
+    history = dqn.fit(env, nb_steps=200000, visualize=False, verbose=1)
 
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    # 結果を表示
+
+    np.save('episode_reward_DQN_lay1',history.history["episode_reward"])
+    sns.set()
+    plt.subplot(1,1,1)
+    plt.plot(history.history["episode_reward"])
+    plt.xlabel("episode")
+    plt.ylabel("reward")
+    plt.show()
+
 
     # Finally, evaluate our algorithm for 5 episodes.
     dqn.test(env, nb_episodes=10, visualize=True)
 
 else:
     # Finally, evaluate our algorithm for 5 episodes.
-    dqn.test(env, nb_episodes=200000, visualize=True, verbose=0)
+    dqn.test(env, nb_episodes=500000, visualize=True, verbose=0)
 
     print("----------------finish----------------") 

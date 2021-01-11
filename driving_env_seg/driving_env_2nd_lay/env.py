@@ -15,7 +15,7 @@ import gym.spaces
 
 class ENV(gym.Env):
     metadata = {'render.modes': ['human', 'ansi']}
-    MAX_STEPS = 50
+    MAX_STEPS = 100#50
     #感度、移動速度
     SENSITIVITY = 0.5
 

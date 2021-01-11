@@ -19,9 +19,14 @@ if 'session' in locals() and session is not None:
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 """
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-sess = tf.Session(config=config)
+#メモリ使用制限
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+  except RuntimeError as e:
+    print(e)
 
 
 ENV_NAME = 'driving_seg2_ddpg-v0'
