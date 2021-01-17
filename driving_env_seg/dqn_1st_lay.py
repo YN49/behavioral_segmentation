@@ -10,6 +10,24 @@ from rl.memory import SequentialMemory
 
 import tensorflow as tf
 
+"""
+import matplotlib.pyplot as plt
+import seaborn as sns
+# 結果を表示
+
+his = np.load('episode_reward_DQN_lay1.npy')
+sns.set()
+plt.subplot(1,1,1)
+#plt.plot(history.history["episode_reward"])
+ave_num=40#移動平均の個数
+b=np.ones(ave_num)/ave_num
+
+reward_history_ave=np.convolve(his, b, mode='same')#移動平均
+plt.plot(reward_history_ave)
+plt.xlabel("episode")
+plt.ylabel("reward")
+plt.show()"""
+
 #https://www.it-swarm.dev/ja/tensorflow/tensorflow%EF%BC%9Ainternalerror%EF%BC%9Ablas-sgemm%E3%81%AE%E8%B5%B7%E5%8B%95%E3%81%AB%E5%A4%B1%E6%95%97%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/824534956/
 if 'session' in locals() and session is not None:
     print('Close interactive session')
@@ -96,7 +114,7 @@ if not lear_method[0]:
     # Okay, now it's time to learn something! We visualize the training here for show, but this
     # slows down training quite a lot. You can always safely abort the training prematurely using
     # Ctrl + C.
-    history = dqn.fit(env, nb_steps=200000, visualize=False, verbose=1)
+    history = dqn.fit(env, nb_steps=250000, visualize=True, verbose=1)
 
     # After training is done, we save the final weights.
     dqn.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
@@ -105,10 +123,21 @@ if not lear_method[0]:
     import seaborn as sns
     # 結果を表示
 
-    np.save('episode_reward_DQN_lay1',history.history["episode_reward"])
+    try:
+        his = np.load('episode_reward_DQN_lay1.npy')
+    except:
+        his = np.array([])
+    his = np.append(his,history.history["episode_reward"])
+
+    np.save('episode_reward_DQN_lay1',his)
     sns.set()
     plt.subplot(1,1,1)
-    plt.plot(history.history["episode_reward"])
+    #plt.plot(history.history["episode_reward"])
+    ave_num=15#移動平均の個数
+    b=np.ones(ave_num)/ave_num
+
+    reward_history_ave=np.convolve(his, b, mode='same')#移動平均
+    plt.plot(reward_history_ave)
     plt.xlabel("episode")
     plt.ylabel("reward")
     plt.show()
@@ -119,6 +148,6 @@ if not lear_method[0]:
 
 else:
     # Finally, evaluate our algorithm for 5 episodes.
-    dqn.test(env, nb_episodes=500000, visualize=True, verbose=0)
+    dqn.test(env, nb_episodes=300000, visualize=True, verbose=0)
 
     print("----------------finish----------------") 

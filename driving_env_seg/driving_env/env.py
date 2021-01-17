@@ -95,7 +95,7 @@ class ENV(gym.Env):
     #道路の外側の色の濃さ　この色の濃さのところを通るとマイナスの報酬が
     OUTSIDE = 0
     #ゴールの色の濃さ ここを通ると報酬が発生
-    GOAL = 200
+    GOAL = 220#200
     #ゴールとか障害物の値の誤差範囲
     ERROR_OF_PIX_VAL = 5
 
@@ -104,23 +104,24 @@ class ENV(gym.Env):
 
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
     INTERVAL = 4
-    MAX_STEPS = 150#1層目のときは150 2層目は300
+    MAX_STEPS = 150#1層目のときは100 2層目は300
 
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.21#本来はこれ
 
+    ###########################################################
     #vaeのエポック数10
-    epochs = 1
+    epochs = 100
     #epochs = 15
     #何stepに一回学習するか200
     TRAIN_FREQ = 10000
 
     original_dim = VIEW_SIZE[0] * VIEW_SIZE[1]
 
-    #VAEの学習を実行するか
-    ENABLE_VAR = True
+    #VAEの学習を実行するか  初回だけTrue
+    ENABLE_VAR = False
     #何ステップ分の教師データを保存するか
-    X_TRAIN_RANGE = 80000
+    X_TRAIN_RANGE = 40000
 
     # VAE parameters
     input_shape = (original_dim, )
@@ -296,8 +297,8 @@ class ENV(gym.Env):
             if self.SPEED_LIM < self.move_vec[0]:
                 self.move_vec[0] = self.SPEED_LIM
         elif action == 1:
-            #減速   ブレーキはアクセルより効きが良い
-            self.move_vec[0] = self.move_vec[0] - self.ACCEL * 3
+            #減速   ブレーキはアクセルより効きが悪い
+            self.move_vec[0] = self.move_vec[0] - self.ACCEL * 0.7
             if self.move_vec[0] < 0:
                 self.move_vec[0] = 0
         elif action == 2:
@@ -350,9 +351,6 @@ class ENV(gym.Env):
         #どっちのモードでも描画用に達成したかを保存
         if math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu:
             self.achievement_flg = True
-        #一回達成したらターゲット更新 一層目学習のときのみ有効
-        if (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
-            self.update_traget()#ターゲットとりあえずランダム設定
 
 
         #現ステップのobservationを教師データに格納
@@ -426,6 +424,10 @@ class ENV(gym.Env):
                     except IndexError:
                         pass
 
+        #一回達成したらターゲット更新 一層目学習のときのみ有効
+        if (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
+            self.update_traget()#ターゲットとりあえずランダム設定
+            
         return observation, reward, self.done, {}
 
     def _render(self, mode='human', close=False):
@@ -519,24 +521,24 @@ class ENV(gym.Env):
 
         #ゴールに着いたら高い報酬を与える
         #if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
-        if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
+        if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
             #pass
-            return 500
+            return 800
         #壁にぶつかったら減点
         elif self.collusion_flg:
             return -2
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return -2#####-500###############################################################################################################################################
+            return -5#####-500###############################################################################################################################################
         #目標達成報酬
-        elif math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]:
-            return 20
+        elif (math.sqrt(np.sum((self.encoded_obs - self.TARGET) ** 2)) < self.range_calcu and not self.lear_method[0]):
+            return 10
         #一定の速度で走れば報酬を増やす
         elif self.SPEED_REW < self.move_vec[0]:
-            return -1
+            return 0
         #ステップ毎減点
         else:
-            return -2
+            return -1.5
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 

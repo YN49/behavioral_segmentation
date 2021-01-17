@@ -104,7 +104,7 @@ class ENV(gym.Env):
 
     #1層目と2層目の動作間隔 なお2層目のときは終了ステップは MAX_STEPS * INTERVAL
     INTERVAL = 4
-    MAX_STEPS = 300
+    MAX_STEPS = 150
 
     #RANGE = 0.18#報酬やるときにどのくらいの距離だったら同じものだという認識に入るか
     RANGE = 0.21#本来はこれ
@@ -363,19 +363,19 @@ class ENV(gym.Env):
         #if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL and self.lear_method[0]:
         if self.GOAL - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.GOAL + self.ERROR_OF_PIX_VAL:
             #pass
-            return 20
+            return 800
         #壁にぶつかったら減点
         elif self.collusion_flg:
-            return -1
+            return -2
         #外側走ったらダメだから減点
         elif self.OUTSIDE - self.ERROR_OF_PIX_VAL < self.PIC[self.int_pos[0]][self.int_pos[1]] < self.OUTSIDE + self.ERROR_OF_PIX_VAL:
-            return -1#####-500###############################################################################################################################################
+            return -5#####-500###############################################################################################################################################
         #一定の速度で走れば報酬を増やす
         elif self.SPEED_REW < self.move_vec[0]:
-            return 1
+            return 0
         #ステップ毎減点
         else:
-            return -1
+            return -1.5
 
     def obs(self):#こっちは2D 画面に表示するやつ
         return self.PIC[self.int_pos[0]-math.ceil(self.VIEW_SIZE[0]/2):self.int_pos[0]+math.floor(self.VIEW_SIZE[0]/2), 

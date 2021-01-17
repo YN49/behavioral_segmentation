@@ -74,7 +74,10 @@ dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
 # Ctrl + C.
-history = dqn.fit(env, nb_steps=180000, visualize=False, verbose=1)
+
+#dqn.test(env, nb_episodes=5, visualize=True, verbose=0)
+
+history = dqn.fit(env, nb_steps=10000, visualize=False, verbose=1)
 
 # After training is done, we save the final weights.
 dqn.save_weights('dqn_{}_weights_2nd_layer.h5f'.format(ENV_NAME), overwrite=True)
@@ -83,14 +86,25 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 # 結果を表示
 
-np.save('episode_reward_DQN_lay2',history.history["episode_reward"])
+try:
+    his = np.load('episode_reward_DQN_lay2.npy')
+except:
+    his = np.array([])
+his = np.append(his,history.history["episode_reward"])
+
+np.save('episode_reward_DQN_lay2',his)
 sns.set()
 plt.subplot(1,1,1)
-plt.plot(history.history["episode_reward"])
+#plt.plot(history.history["episode_reward"])
+ave_num=15#移動平均の個数
+b=np.ones(ave_num)/ave_num
+
+reward_history_ave=np.convolve(his, b, mode='same')#移動平均
+plt.plot(reward_history_ave)
 plt.xlabel("episode")
 plt.ylabel("reward")
+plt.show()
 
-plt.show()  # windowが表示されます。
 
 # Finally, evaluate our algorithm for 5 episodes.
 dqn.test(env, nb_episodes=5, visualize=True, verbose=0)
